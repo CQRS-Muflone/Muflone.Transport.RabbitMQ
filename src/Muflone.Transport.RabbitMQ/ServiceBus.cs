@@ -39,7 +39,7 @@ public class ServiceBus : IServiceBus, IEventBus
                 _logger.LogWarning(ex,
                     "Could not publish message '{MessageId}' to Exchange '{ExchangeName}', after {Timeout}s : {ExceptionMessage}",
                     command.MessageId,
-                    _rabbitMQReference.ExchangeName,
+                    _rabbitMQReference.ExchangeCommandsName,
                     $"{time.TotalSeconds:n1}", ex.Message);
             });
 
@@ -48,22 +48,22 @@ public class ServiceBus : IServiceBus, IEventBus
         properties.Persistent = true;
         properties.Headers = new Dictionary<string, object>()
         {
-            { "Command", command.GetType().FullName }
+            { "message-type", command.GetType().FullName }
         };
 
         policy.Execute(() =>
         {
-            channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeName, type: ExchangeType.Direct);
+            channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeCommandsName, type: ExchangeType.Direct);
             channel.BasicPublish(
-                exchange: _rabbitMQReference.ExchangeName,
-                routingKey: _rabbitMQReference.QueueName,
+                exchange: _rabbitMQReference.ExchangeCommandsName,
+                routingKey: _rabbitMQReference.QueueCommandsName,
                 mandatory: true,
                 basicProperties: properties,
                 body: Encoding.UTF8.GetBytes(serializedMessage));
 
             _logger.LogInformation("message '{MessageId}' published to Exchange '{ExchangeName}'",
                 command.MessageId,
-                _rabbitMQReference.ExchangeName);
+                _rabbitMQReference.ExchangeCommandsName);
         });
     }
 
@@ -77,7 +77,7 @@ public class ServiceBus : IServiceBus, IEventBus
                 _logger.LogWarning(ex,
                     "Could not publish message '{MessageId}' to Exchange '{ExchangeName}', after {Timeout}s : {ExceptionMessage}",
                     @event.MessageId,
-                    _rabbitMQReference.ExchangeName,
+                    _rabbitMQReference.ExchangeCommandsName,
                     $"{time.TotalSeconds:n1}", ex.Message);
             });
 
@@ -86,22 +86,22 @@ public class ServiceBus : IServiceBus, IEventBus
         properties.Persistent = true;
         properties.Headers = new Dictionary<string, object>()
         {
-            { "Event", @event.GetType().FullName }
+            { "message-type", @event.GetType().FullName }
         };
 
         policy.Execute(() =>
         {
-            channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeName, type: ExchangeType.Fanout);
+            channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeEventsName, type: ExchangeType.Fanout);
             channel.BasicPublish(
-                exchange: _rabbitMQReference.ExchangeName,
-                routingKey: _rabbitMQReference.QueueName,
+                exchange: _rabbitMQReference.ExchangeEventsName,
+                routingKey: _rabbitMQReference.QueueEventsName,
                 mandatory: true,
                 basicProperties: properties,
                 body: Encoding.UTF8.GetBytes(serializedMessage));
 
             _logger.LogInformation("message '{MessageId}' published to Exchange '{ExchangeName}'",
                 @event.MessageId,
-                _rabbitMQReference.ExchangeName);
+                _rabbitMQReference.ExchangeCommandsName);
         });
     }
 }

@@ -13,15 +13,10 @@ public static class TransportRabbitMQHelper
         RabbitMQReference rabbitMQReference,
         IEnumerable<IConsumer> messageConsumers)
     {
-        //var configurations = Enumerable.Empty<RabbitMQConfiguration>();
-        //foreach (var consumer in messageConsumers)
-        //{
-        //    configurations = configurations.Concat(new List<RabbitMQConfiguration>
-        //    {
-        //        new(rabbitMQConfiguration.HostName, rabbitMQConfiguration.UserName, rabbitMQConfiguration.Password,
-        //            rabbitMQConfiguration.RetryDelay)
-        //    });
-        //}
+        foreach (var consumer in messageConsumers)
+        {
+            consumer.StartAsync(CancellationToken.None);
+        }
 
         services.AddSingleton(rabbitMQReference);
         services.AddSingleton(rabbitMQConfiguration);

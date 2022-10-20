@@ -1,6 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System;
+using System.Text;
+using Microsoft.Extensions.Logging;
 using Muflone.Messages;
 using Muflone.Messages.Commands;
+using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
 using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
@@ -10,7 +13,7 @@ namespace Muflone.Transport.RabbitMQ.Consumers;
 
 public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>, IAsyncDisposable where T : class, ICommand
 {
-    private readonly Persistence.ISerializer _messageSerializer;
+    private readonly ISerializer _messageSerializer;
     private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
     private IModel _channel;
     private readonly RabbitMQReference _rabbitMQReference;
@@ -21,12 +24,11 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 
     protected CommandConsumerBase(RabbitMQReference rabbitMQReference,
         IMufloneConnectionFactory mufloneConnectionFactory,
-        ILoggerFactory loggerFactory,
-        Persistence.ISerializer? messageSerializer = null) : base(loggerFactory)
+        ILoggerFactory loggerFactory) : base(loggerFactory)
     {
         _rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
         _mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
-        _messageSerializer = messageSerializer ?? new Persistence.Serializer();
+        _messageSerializer = new Serializer();
 
         TopicName = typeof(T).Name;
     }
@@ -57,15 +59,15 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 
         _channel = _mufloneConnectionFactory.CreateChannel();
 
-        Logger.LogInformation($"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeName}'...");
+        Logger.LogInformation($"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeCommandsName}'...");
 
-        _channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeName, type: ExchangeType.Direct);
+        _channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeCommandsName, type: ExchangeType.Direct);
         _channel.QueueDeclare(queue: TopicName,
             durable: true,
             exclusive: false,
             autoDelete: false);
-        _channel.QueueBind(queue: _rabbitMQReference.QueueName,
-            exchange: _rabbitMQReference.ExchangeName,
+        _channel.QueueBind(queue: _rabbitMQReference.QueueCommandsName,
+            exchange: _rabbitMQReference.ExchangeCommandsName,
             routingKey: TopicName, //_queueReferences.RoutingKey
             arguments: null);
 
@@ -112,7 +114,8 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
         ICommand command;
         try
         {
-            command = await _messageSerializer.DeserializeAsync<T>(eventArgs.Body.ToString(), CancellationToken.None);
+            command = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
+                CancellationToken.None);
         }
         catch (Exception ex)
         {

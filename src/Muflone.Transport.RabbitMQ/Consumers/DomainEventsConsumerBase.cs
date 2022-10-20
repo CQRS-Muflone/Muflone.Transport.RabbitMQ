@@ -1,16 +1,18 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text;
+using Microsoft.Extensions.Logging;
 using Muflone.Messages.Events;
 using Muflone.Transport.RabbitMQ.Abstracts;
 using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Muflone.Messages;
+using Muflone.Persistence;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
 public abstract class DomainEventsConsumerBase<T>: ConsumerBase, IDomainEventConsumer<T>, IAsyncDisposable where T : class, IDomainEvent
 {
-    private readonly Persistence.ISerializer _messageSerializer;
+    private readonly ISerializer _messageSerializer;
     private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
     private IModel _channel;
     private readonly RabbitMQReference _rabbitMQReference;
@@ -21,12 +23,11 @@ public abstract class DomainEventsConsumerBase<T>: ConsumerBase, IDomainEventCon
 
     protected DomainEventsConsumerBase(RabbitMQReference rabbitMQReference,
         IMufloneConnectionFactory mufloneConnectionFactory,
-        ILoggerFactory loggerFactory,
-        Persistence.ISerializer? messageSerializer = null) : base(loggerFactory)
+        ILoggerFactory loggerFactory) : base(loggerFactory)
     {
         _rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
         _mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
-        _messageSerializer = messageSerializer ?? new Persistence.Serializer();
+        _messageSerializer = new Serializer();
 
         TopicName = typeof(T).Name;
     }
@@ -59,15 +60,15 @@ public abstract class DomainEventsConsumerBase<T>: ConsumerBase, IDomainEventCon
 
         _channel = _mufloneConnectionFactory.CreateChannel();
 
-        Logger.LogInformation($"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeName}'...");
+        Logger.LogInformation($"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeEventsName}'...");
 
-        _channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeName, type: ExchangeType.Fanout);
+        _channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeEventsName, type: ExchangeType.Fanout);
         _channel.QueueDeclare(queue: TopicName,
             durable: true,
             exclusive: false,
             autoDelete: false);
-        _channel.QueueBind(queue: _rabbitMQReference.QueueName,
-            exchange: _rabbitMQReference.ExchangeName,
+        _channel.QueueBind(queue: _rabbitMQReference.QueueEventsName,
+            exchange: _rabbitMQReference.ExchangeEventsName,
             routingKey: TopicName, //_queueReferences.RoutingKey
             arguments: null);
 
@@ -114,7 +115,8 @@ public abstract class DomainEventsConsumerBase<T>: ConsumerBase, IDomainEventCon
         IDomainEvent message;
         try
         {
-            message = await _messageSerializer.DeserializeAsync<T>(eventArgs.Body.ToString(), CancellationToken.None);
+            message = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
+                CancellationToken.None);
         }
         catch (Exception ex)
         {

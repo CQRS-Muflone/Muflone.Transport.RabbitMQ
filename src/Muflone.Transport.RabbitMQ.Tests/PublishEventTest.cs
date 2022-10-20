@@ -10,7 +10,8 @@ namespace Muflone.Transport.RabbitMQ.Tests
         public async Task Can_Publish_Event()
         {
             var rabbitMQConfiguration = new RabbitMQConfiguration("localhost", "myuser", "mypassword", "Muflone");
-            var rabbitMQReference = new RabbitMQReference("MufloneEvents", "OrderCreated");
+            var rabbitMQReference =
+                new RabbitMQReference("MufloneCommands", "CreateOrder", "MufloneEvents", "OrderCreated");
             var mufloneConnectionFactory = new MufloneConnectionFactory(rabbitMQConfiguration, new NullLoggerFactory());
 
             var serviceBus = new ServiceBus(mufloneConnectionFactory, rabbitMQReference, new NullLoggerFactory());
@@ -22,7 +23,8 @@ namespace Muflone.Transport.RabbitMQ.Tests
         public async Task Can_Handle_Event()
         {
             var rabbitMQConfiguration = new RabbitMQConfiguration("localhost", "myuser", "mypassword", "Muflone");
-            var rabbitMQReference = new RabbitMQReference("MufloneEvents", "OrderCreated");
+            var rabbitMQReference =
+                new RabbitMQReference("MufloneCommands", "CreateOrder", "MufloneEvents", "OrderCreated");
             var mufloneConnectionFactory = new MufloneConnectionFactory(rabbitMQConfiguration, new NullLoggerFactory());
 
             var domainEventConsumer =
