@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32929.385
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Muflone.Transport.RabbitMQ", "Muflone.Transport.RabbitMQ\Muflone.Transport.RabbitMQ.csproj", "{DA1481B6-765D-4707-B72C-2CCA33B41960}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A30778A7-53EA-4EEE-9F73-F28D52960378}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Muflone.Transport.RabbitMQ.Tests", "Muflone.Transport.RabbitMQ.Tests\Muflone.Transport.RabbitMQ.Tests.csproj", "{7BC39D88-D7ED-4991-BCB5-9D435501244A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DA1481B6-765D-4707-B72C-2CCA33B41960}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA1481B6-765D-4707-B72C-2CCA33B41960}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA1481B6-765D-4707-B72C-2CCA33B41960}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA1481B6-765D-4707-B72C-2CCA33B41960}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7BC39D88-D7ED-4991-BCB5-9D435501244A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7BC39D88-D7ED-4991-BCB5-9D435501244A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7BC39D88-D7ED-4991-BCB5-9D435501244A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7BC39D88-D7ED-4991-BCB5-9D435501244A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7BC39D88-D7ED-4991-BCB5-9D435501244A} = {A30778A7-53EA-4EEE-9F73-F28D52960378}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {06DCD95C-B56A-4DEC-848B-9BAE82319FCB}
+	EndGlobalSection
+EndGlobal
