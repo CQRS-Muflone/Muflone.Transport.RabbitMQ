@@ -10,24 +10,22 @@ using Muflone.Persistence;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
-public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventConsumer<T>, IAsyncDisposable
+public abstract class DomainEventConsumerBase<T> : ConsumerBase, IDomainEventConsumer<T>, IAsyncDisposable
 	where T : class, IDomainEvent
 {
 	private readonly ISerializer _messageSerializer;
 	private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
 	private IModel _channel;
-	protected readonly IRepository Repository;
 	private readonly RabbitMQReference _rabbitMQReference;
 
 	public string TopicName { get; }
 
 	protected abstract IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync { get; }
 
-	protected DomainEventsConsumerBase(IRepository repository, RabbitMQReference rabbitMQReference,
+	protected DomainEventConsumerBase(IRepository repository, RabbitMQReference rabbitMQReference,
 		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(loggerFactory)
+		ILoggerFactory loggerFactory) : base(repository, loggerFactory)
 	{
-		Repository = repository ?? throw new ArgumentNullException(nameof(repository));
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
 		_mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
 		_messageSerializer = new Serializer();
