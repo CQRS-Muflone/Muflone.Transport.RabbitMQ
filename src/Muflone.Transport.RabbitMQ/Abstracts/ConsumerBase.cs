@@ -6,8 +6,14 @@ public abstract class ConsumerBase
 {
     protected readonly ILogger Logger;
 
+    /// <summary>
+    /// For now just as a proxy to pass directly to the Handler this class is wrapping
+    /// </summary>
+    public ILoggerFactory LoggerFactory { get; }
+
     protected ConsumerBase(ILoggerFactory loggerFactory)
     {
-        Logger = loggerFactory.CreateLogger(GetType()) ?? throw new ArgumentNullException(nameof(loggerFactory));
+	    LoggerFactory = loggerFactory;
+	    Logger = loggerFactory.CreateLogger(GetType()) ?? throw new ArgumentNullException(nameof(loggerFactory));
     }
 }
