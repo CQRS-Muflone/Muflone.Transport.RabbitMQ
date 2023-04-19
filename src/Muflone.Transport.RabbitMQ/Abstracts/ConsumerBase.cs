@@ -7,12 +7,16 @@ public abstract class ConsumerBase
 {
 	protected readonly ILogger Logger;
 
-	public IRepository Repository { get; }
 
 	/// <summary>
 	/// For now just as a proxy to pass directly to the Handler this class is wrapping
 	/// </summary>
-	public ILoggerFactory LoggerFactory { get; }
+	protected IRepository Repository { get; }
+
+	/// <summary>
+	/// For now just as a proxy to pass directly to the Handler this class is wrapping
+	/// </summary>
+	protected ILoggerFactory LoggerFactory { get; }
 
 	protected ConsumerBase(IRepository repository, ILoggerFactory loggerFactory)
 	{
