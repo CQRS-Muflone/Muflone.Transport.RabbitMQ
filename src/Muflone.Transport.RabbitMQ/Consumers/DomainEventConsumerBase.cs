@@ -1,42 +1,41 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
-using Muflone.Messages;
-using Muflone.Messages.Commands;
-using Muflone.Persistence;
+using Muflone.Messages.Events;
 using Muflone.Transport.RabbitMQ.Abstracts;
 using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Muflone.Messages;
+using Muflone.Persistence;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
-public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>, IAsyncDisposable
-	where T : class, ICommand
+public abstract class DomainEventConsumerBase<T> : ConsumerBase, IDomainEventConsumer<T>, IAsyncDisposable
+	where T : class, IDomainEvent
 {
 	private readonly ISerializer _messageSerializer;
 	private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
 	private IModel _channel;
 	private readonly RabbitMQReference _rabbitMQReference;
 
-	protected abstract ICommandHandlerAsync<T> HandlerAsync { get; }
-
 	public string TopicName { get; }
 
-	protected CommandConsumerBase(IRepository repository, RabbitMQReference rabbitMQReference,
+	protected abstract IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync { get; }
+
+	protected DomainEventConsumerBase(IRepository repository, RabbitMQReference rabbitMQReference,
 		IMufloneConnectionFactory mufloneConnectionFactory,
 		ILoggerFactory loggerFactory) : base(repository, loggerFactory)
 	{
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-		_mufloneConnectionFactory =
-			mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
+		_mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
 		_messageSerializer = new Serializer();
-
 		TopicName = typeof(T).Name;
 	}
 
 	public async Task ConsumeAsync(T message, CancellationToken cancellationToken = default)
 	{
-		await HandlerAsync.HandleAsync(message, cancellationToken);
+		foreach (var handlerAsync in HandlersAsync)
+			await handlerAsync.HandleAsync((dynamic)message, CancellationToken.None);
 	}
 
 	public Task StartAsync(CancellationToken cancellationToken = default)
@@ -50,7 +49,6 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	public Task StopAsync(CancellationToken cancellationToken = default)
 	{
 		StopChannel();
-
 		return Task.CompletedTask;
 	}
 
@@ -61,15 +59,15 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		_channel = _mufloneConnectionFactory.CreateChannel();
 
 		Logger.LogInformation(
-			$"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeCommandsName}'...");
+			$"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeEventsName}'...");
 
-		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeCommandsName, ExchangeType.Direct);
+		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Fanout);
 		_channel.QueueDeclare(TopicName,
 			true,
 			false,
 			false);
-		_channel.QueueBind(_rabbitMQReference.QueueCommandsName,
-			_rabbitMQReference.ExchangeCommandsName,
+		_channel.QueueBind(_rabbitMQReference.QueueEventsName,
+			_rabbitMQReference.ExchangeEventsName,
 			TopicName, //_queueReferences.RoutingKey
 			null);
 
@@ -114,10 +112,10 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		var consumer = sender as IBasicConsumer;
 		var channel = consumer?.Model ?? _channel;
 
-		ICommand command;
+		IDomainEvent message;
 		try
 		{
-			command = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
+			message = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
 				CancellationToken.None);
 		}
 		catch (Exception ex)
@@ -131,18 +129,18 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 
 		Logger.LogInformation(
 			"received message '{MessageId}' from Exchange '{ExchangeName}', Queue '{QueueName}'. Processing...",
-			command.MessageId, TopicName, TopicName);
+			message.MessageId, TopicName, TopicName);
 
 		try
 		{
 			//TODO: provide valid cancellation token
-			await ConsumeAsync((dynamic)command, CancellationToken.None);
+			await ConsumeAsync((dynamic)message, CancellationToken.None);
 
 			channel.BasicAck(eventArgs.DeliveryTag, false);
 		}
 		catch (Exception ex)
 		{
-			HandleConsumerException(ex, eventArgs, channel, command, false);
+			HandleConsumerException(ex, eventArgs, channel, message, false);
 		}
 	}
 
@@ -170,8 +168,12 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		}
 	}
 
+	#region Dispose
+
 	public ValueTask DisposeAsync()
 	{
 		return ValueTask.CompletedTask;
 	}
+
+	#endregion
 }
