@@ -40,7 +40,7 @@ public class OrderCreated : DomainEvent
 	}
 }
 
-public class OrderCreatedConsumer : DomainEventsConsumerBase<OrderCreated>
+public class OrderCreatedConsumer : DomainEventConsumerBase<OrderCreated>
 {
 	public OrderCreatedConsumer(IRepository repository, RabbitMQReference rabbitMQReference,
 		IMufloneConnectionFactory mufloneConnectionFactory,
