@@ -6,9 +6,9 @@ Muflone extension to manage queues, and topics on RabbitMQ.
 
 
 ### 2023-04-23 Breaking changes
-- Renamed `DomainEventsConsumerBase` to `DomainEventConsumerBase`
+- Renamed class `DomainEventsConsumerBase` to `DomainEventConsumerBase`
 - Added `IRepository` in the ConsumerBase's constructor
-- Now ConsumerBase's `LoggerFactory` is public and not private anymore. so we can use it in something like that:
+- Now ConsumerBase's `LoggerFactory` is public and not private anymore. We can now use it in something like that:
 
       public class CreateCartConsumer : CommandConsumerBase<CreateCart>
       {
@@ -21,7 +21,7 @@ Muflone extension to manage queues, and topics on RabbitMQ.
           protected override ICommandHandlerAsync<CreateCart> HandlerAsync => new CreateCartCommandHandler(Repository, LoggerFactory);
       }
 
-
+- Changed, property of `DomainEventConsumerBase` from `IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync` to `IDomainEventHandlerAsync<T> HandlerAsync`
 
 ### Sample ###
 It's very simple to register RabbitMQ's transport

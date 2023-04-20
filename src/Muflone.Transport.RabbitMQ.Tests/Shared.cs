@@ -42,11 +42,11 @@ public class OrderCreated : DomainEvent
 
 public class OrderCreatedConsumer : DomainEventConsumerBase<OrderCreated>
 {
-	public OrderCreatedConsumer(IRepository repository, RabbitMQReference rabbitMQReference,
+	public OrderCreatedConsumer(RabbitMQReference rabbitMQReference,
 		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(repository, rabbitMQReference, mufloneConnectionFactory, loggerFactory)
+		ILoggerFactory loggerFactory) : base(rabbitMQReference, mufloneConnectionFactory, loggerFactory)
 	{
 	}
 
-	protected override IEnumerable<IDomainEventHandlerAsync<OrderCreated>> HandlersAsync { get; }
+	protected override IDomainEventHandlerAsync<OrderCreated> HandlerAsync { get; }
 }

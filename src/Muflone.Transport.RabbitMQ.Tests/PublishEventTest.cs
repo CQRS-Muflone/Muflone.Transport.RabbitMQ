@@ -24,10 +24,8 @@ public class PublishEventTest
 		var rabbitMQConfiguration = new RabbitMQConfiguration("localhost", "myuser", "mypassword", "Muflone");
 		var rabbitMQReference = new RabbitMQReference("MufloneCommands", "CreateOrder", "MufloneEvents", "OrderCreated");
 		var mufloneConnectionFactory = new MufloneConnectionFactory(rabbitMQConfiguration, new NullLoggerFactory());
-		var repository = new InMemoryRepository();
 
-		var domainEventConsumer =
-			new OrderCreatedConsumer(repository, rabbitMQReference, mufloneConnectionFactory, new NullLoggerFactory());
+		var domainEventConsumer = new OrderCreatedConsumer(rabbitMQReference, mufloneConnectionFactory, new NullLoggerFactory());
 		await domainEventConsumer.StartAsync(CancellationToken.None);
 	}
 }
