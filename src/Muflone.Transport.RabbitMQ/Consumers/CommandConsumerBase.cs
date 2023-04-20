@@ -22,10 +22,16 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 
 	public string TopicName { get; }
 
+	/// <summary>
+	/// For now just as a proxy to pass directly to the Handler this class is wrapping
+	/// </summary>
+	protected IRepository Repository { get; }
+
 	protected CommandConsumerBase(IRepository repository, RabbitMQReference rabbitMQReference,
 		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(repository, loggerFactory)
+		ILoggerFactory loggerFactory) : base(loggerFactory)
 	{
+		Repository = repository ?? throw new ArgumentNullException(nameof(repository));
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
 		_mufloneConnectionFactory =
 			mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));

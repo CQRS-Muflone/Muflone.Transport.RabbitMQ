@@ -20,11 +20,11 @@ public abstract class DomainEventConsumerBase<T> : ConsumerBase, IDomainEventCon
 
 	public string TopicName { get; }
 
-	protected abstract IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync { get; }
+	protected abstract IDomainEventHandlerAsync<T> HandlerAsync { get; }
 
-	protected DomainEventConsumerBase(IRepository repository, RabbitMQReference rabbitMQReference,
+	protected DomainEventConsumerBase(RabbitMQReference rabbitMQReference,
 		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(repository, loggerFactory)
+		ILoggerFactory loggerFactory) : base(loggerFactory)
 	{
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
 		_mufloneConnectionFactory =
@@ -35,8 +35,7 @@ public abstract class DomainEventConsumerBase<T> : ConsumerBase, IDomainEventCon
 
 	public async Task ConsumeAsync(T message, CancellationToken cancellationToken = default)
 	{
-		foreach (var handlerAsync in HandlersAsync)
-			await handlerAsync.HandleAsync((dynamic)message, CancellationToken.None);
+		await HandlerAsync.HandleAsync(message, cancellationToken);
 	}
 
 	public Task StartAsync(CancellationToken cancellationToken = default)
@@ -63,10 +62,7 @@ public abstract class DomainEventConsumerBase<T> : ConsumerBase, IDomainEventCon
 			$"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeEventsName}'...");
 
 		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Fanout);
-		_channel.QueueDeclare(TopicName,
-			true,
-			false,
-			false);
+		_channel.QueueDeclare(TopicName, true, false, false);
 		_channel.QueueBind(_rabbitMQReference.QueueEventsName,
 			_rabbitMQReference.ExchangeEventsName,
 			TopicName, //_queueReferences.RoutingKey
