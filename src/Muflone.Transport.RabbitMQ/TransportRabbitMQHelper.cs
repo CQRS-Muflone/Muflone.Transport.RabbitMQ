@@ -8,22 +8,19 @@ namespace Muflone.Transport.RabbitMQ;
 
 public static class TransportRabbitMQHelper
 {
-    public static IServiceCollection AddMufloneTransportRabbitMQ(this IServiceCollection services,
-        RabbitMQConfiguration rabbitMQConfiguration,
-        RabbitMQReference rabbitMQReference,
-        IEnumerable<IConsumer> messageConsumers)
-    {
-        foreach (var consumer in messageConsumers)
-        {
-            consumer.StartAsync(CancellationToken.None);
-        }
+	public static IServiceCollection AddMufloneTransportRabbitMQ(this IServiceCollection services,
+		RabbitMQConfiguration rabbitMQConfiguration,
+		RabbitMQReference rabbitMQReference,
+		IEnumerable<IConsumer> messageConsumers)
+	{
+		foreach (var consumer in messageConsumers) consumer.StartAsync(CancellationToken.None);
 
-        services.AddSingleton(rabbitMQReference);
-        services.AddSingleton(rabbitMQConfiguration);
-        services.AddSingleton<IMufloneConnectionFactory, MufloneConnectionFactory>();
-        services.AddSingleton<IServiceBus, ServiceBus>();
-        services.AddSingleton<IEventBus, ServiceBus>();
+		services.AddSingleton(rabbitMQReference);
+		services.AddSingleton(rabbitMQConfiguration);
+		services.AddSingleton<IMufloneConnectionFactory, MufloneConnectionFactory>();
+		services.AddSingleton<IServiceBus, ServiceBus>();
+		services.AddSingleton<IEventBus, ServiceBus>();
 
-        return services;
-    }
+		return services;
+	}
 }

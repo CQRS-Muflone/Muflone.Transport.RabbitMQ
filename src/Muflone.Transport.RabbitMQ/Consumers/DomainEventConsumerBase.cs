@@ -27,7 +27,8 @@ public abstract class DomainEventConsumerBase<T> : ConsumerBase, IDomainEventCon
 		ILoggerFactory loggerFactory) : base(repository, loggerFactory)
 	{
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-		_mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
+		_mufloneConnectionFactory =
+			mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
 		_messageSerializer = new Serializer();
 		TopicName = typeof(T).Name;
 	}
