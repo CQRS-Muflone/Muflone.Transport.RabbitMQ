@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Muflone.Messages;
 using Muflone.Messages.Commands;
@@ -7,161 +7,165 @@ using Muflone.Transport.RabbitMQ.Abstracts;
 using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Text;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
 public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>, IAsyncDisposable where T : class, ICommand
 {
-    private readonly ISerializer _messageSerializer;
-    private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
-    private IModel _channel;
-    private readonly RabbitMQReference _rabbitMQReference;
+	private readonly ISerializer _messageSerializer;
+	private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
+	private IModel _channel;
+	private readonly RabbitMQReference _rabbitMQReference;
 
-    protected abstract ICommandHandlerAsync<T> HandlerAsync { get; }
+	protected abstract ICommandHandlerAsync<T>? HandlerAsync { get; set; }
 
-    public string TopicName { get; }
+	public string TopicName { get; }
 
-    protected CommandConsumerBase(RabbitMQReference rabbitMQReference,
-        IMufloneConnectionFactory mufloneConnectionFactory,
-        ILoggerFactory loggerFactory) : base(loggerFactory)
-    {
-        _rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-        _mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
-        _messageSerializer = new Serializer();
+	protected CommandConsumerBase(RabbitMQReference rabbitMQReference,
+		IMufloneConnectionFactory mufloneConnectionFactory,
+		IServiceProvider serviceProvider,
+		ILoggerFactory loggerFactory) : base(loggerFactory)
+	{
+		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
+		_mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
+		_messageSerializer = new Serializer();
 
-        TopicName = typeof(T).Name;
-    }
+		TopicName = typeof(T).Name;
 
-    public async Task ConsumeAsync(T message, CancellationToken cancellationToken = default)
-    {
-        await HandlerAsync.HandleAsync(message, cancellationToken);
-    }
+		HandlerAsync = serviceProvider.GetService<ICommandHandlerAsync<T>>();
+	}
 
-    public Task StartAsync(CancellationToken cancellationToken = default)
-    {
-        InitChannel();
-        InitSubscription();
+	public async Task ConsumeAsync(T message, CancellationToken cancellationToken = default)
+	{
+		await HandlerAsync.HandleAsync(message, cancellationToken);
+	}
 
-        return Task.CompletedTask;
-    }
+	public Task StartAsync(CancellationToken cancellationToken = default)
+	{
+		InitChannel();
+		InitSubscription();
 
-    public Task StopAsync(CancellationToken cancellationToken = default)
-    {
-        StopChannel();
+		return Task.CompletedTask;
+	}
 
-        return Task.CompletedTask;
-    }
+	public Task StopAsync(CancellationToken cancellationToken = default)
+	{
+		StopChannel();
 
-    private void InitChannel()
-    {
-        StopChannel();
+		return Task.CompletedTask;
+	}
 
-        _channel = _mufloneConnectionFactory.CreateChannel();
+	private void InitChannel()
+	{
+		StopChannel();
 
-        Logger.LogInformation($"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeCommandsName}'...");
+		_channel = _mufloneConnectionFactory.CreateChannel();
 
-        _channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeCommandsName, type: ExchangeType.Direct);
-        _channel.QueueDeclare(queue: TopicName,
-            durable: true,
-            exclusive: false,
-            autoDelete: false);
-        _channel.QueueBind(queue: _rabbitMQReference.QueueCommandsName,
-            exchange: _rabbitMQReference.ExchangeCommandsName,
-            routingKey: TopicName, //_queueReferences.RoutingKey
-            arguments: null);
+		Logger.LogInformation($"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeCommandsName}'...");
 
-        _channel.CallbackException += OnChannelException;
-    }
+		_channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeCommandsName, type: ExchangeType.Direct);
+		_channel.QueueDeclare(queue: TopicName,
+			durable: true,
+			exclusive: false,
+			autoDelete: false);
+		_channel.QueueBind(queue: _rabbitMQReference.QueueCommandsName,
+			exchange: _rabbitMQReference.ExchangeCommandsName,
+			routingKey: TopicName, //_queueReferences.RoutingKey
+			arguments: null);
 
-    private void StopChannel()
-    {
-        if (_channel is null)
-            return;
+		_channel.CallbackException += OnChannelException;
+	}
 
-        _channel.CallbackException -= OnChannelException;
+	private void StopChannel()
+	{
+		if (_channel is null)
+			return;
 
-        if (_channel.IsOpen)
-            _channel.Close();
+		_channel.CallbackException -= OnChannelException;
 
-        _channel.Dispose();
-        _channel = null;
-    }
+		if (_channel.IsOpen)
+			_channel.Close();
 
-    private void OnChannelException(object _, CallbackExceptionEventArgs ea)
-    {
-        Logger.LogError(ea.Exception, "the RabbitMQ Channel has encountered an error: {ExceptionMessage}", ea.Exception.Message);
+		_channel.Dispose();
+		_channel = null;
+	}
 
-        InitChannel();
-        InitSubscription();
-    }
+	private void OnChannelException(object _, CallbackExceptionEventArgs ea)
+	{
+		Logger.LogError(ea.Exception, "the RabbitMQ Channel has encountered an error: {ExceptionMessage}", ea.Exception.Message);
 
-    private void InitSubscription()
-    {
-        var consumer = new AsyncEventingBasicConsumer(_channel);
+		InitChannel();
+		InitSubscription();
+	}
 
-        consumer.Received += OnMessageReceivedAsync;
+	private void InitSubscription()
+	{
+		var consumer = new AsyncEventingBasicConsumer(_channel);
 
-        Logger.LogInformation($"initializing subscription on queue '{TopicName}' ...");
-        _channel.BasicConsume(queue: TopicName, autoAck: false, consumer: consumer);
-    }
+		consumer.Received += OnMessageReceivedAsync;
 
-    private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)
-    {
-        var consumer = sender as IBasicConsumer;
-        var channel = consumer?.Model ?? _channel;
+		Logger.LogInformation($"initializing subscription on queue '{TopicName}' ...");
+		_channel.BasicConsume(queue: TopicName, autoAck: false, consumer: consumer);
+	}
 
-        ICommand command;
-        try
-        {
-            command = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
-                CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "an exception has occured while decoding queue message from Exchange '{ExchangeName}', message cannot be parsed. Error: {ExceptionMessage}",
-                eventArgs.Exchange, ex.Message);
-            channel.BasicReject(eventArgs.DeliveryTag, requeue: false);
-            return;
-        }
+	private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)
+	{
+		var consumer = sender as IBasicConsumer;
+		var channel = consumer?.Model ?? _channel;
 
-        Logger.LogInformation("received message '{MessageId}' from Exchange '{ExchangeName}', Queue '{QueueName}'. Processing...",
-            command.MessageId, TopicName, TopicName);
+		ICommand command;
+		try
+		{
+			command = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
+				CancellationToken.None);
+		}
+		catch (Exception ex)
+		{
+			Logger.LogError(ex, "an exception has occured while decoding queue message from Exchange '{ExchangeName}', message cannot be parsed. Error: {ExceptionMessage}",
+				eventArgs.Exchange, ex.Message);
+			channel.BasicReject(eventArgs.DeliveryTag, requeue: false);
+			return;
+		}
 
-        try
-        {
-            //TODO: provide valid cancellation token
-            await ConsumeAsync((dynamic)command, CancellationToken.None);
+		Logger.LogInformation("received message '{MessageId}' from Exchange '{ExchangeName}', Queue '{QueueName}'. Processing...",
+			command.MessageId, TopicName, TopicName);
 
-            channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
-        }
-        catch (Exception ex)
-        {
-            HandleConsumerException(ex, eventArgs, channel, command, false);
-        }
-    }
+		try
+		{
+			//TODO: provide valid cancellation token
+			await ConsumeAsync((dynamic)command, CancellationToken.None);
 
-    private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel, IMessage message, bool requeue)
-    {
-        var errorMsg = "an error has occurred while processing Message '{MessageId}' from Exchange '{ExchangeName}' : {ExceptionMessage} . "
-                       + (requeue ? "Reenqueuing..." : "Nacking...");
+			channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+		}
+		catch (Exception ex)
+		{
+			HandleConsumerException(ex, eventArgs, channel, command, false);
+		}
+	}
 
-        Logger.LogWarning(ex, errorMsg, message.MessageId, TopicName, ex.Message);
+	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel, IMessage message, bool requeue)
+	{
+		var errorMsg = "an error has occurred while processing Message '{MessageId}' from Exchange '{ExchangeName}' : {ExceptionMessage} . "
+					   + (requeue ? "Reenqueuing..." : "Nacking...");
 
-        if (!requeue)
-            channel.BasicReject(deliveryProps.DeliveryTag, requeue: false);
-        else
-        {
-            channel.BasicAck(deliveryProps.DeliveryTag, false);
-            channel.BasicPublish(
-                exchange: TopicName,
-                routingKey: deliveryProps.RoutingKey,
-                basicProperties: deliveryProps.BasicProperties,
-                body: deliveryProps.Body);
-        }
-    }
+		Logger.LogWarning(ex, errorMsg, message.MessageId, TopicName, ex.Message);
 
-    public ValueTask DisposeAsync()
-    {
-        return ValueTask.CompletedTask;
-    }
+		if (!requeue)
+			channel.BasicReject(deliveryProps.DeliveryTag, requeue: false);
+		else
+		{
+			channel.BasicAck(deliveryProps.DeliveryTag, false);
+			channel.BasicPublish(
+				exchange: TopicName,
+				routingKey: deliveryProps.RoutingKey,
+				basicProperties: deliveryProps.BasicProperties,
+				body: deliveryProps.Body);
+		}
+	}
+
+	public ValueTask DisposeAsync()
+	{
+		return ValueTask.CompletedTask;
+	}
 }
