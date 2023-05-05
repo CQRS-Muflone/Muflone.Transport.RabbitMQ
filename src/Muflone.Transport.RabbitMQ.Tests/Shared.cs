@@ -1,13 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Muflone.Core;
-using Muflone.Messages.Commands;
-using Muflone.Messages.Events;
-using Muflone.Persistence;
-using Muflone.Transport.RabbitMQ.Abstracts;
-using Muflone.Transport.RabbitMQ.Consumers;
-using Muflone.Transport.RabbitMQ.Models;
-
-namespace Muflone.Transport.RabbitMQ.Tests;
+﻿namespace Muflone.Transport.RabbitMQ.Tests;
 
 public class OrderId : DomainId
 {
@@ -40,14 +31,13 @@ public class OrderCreated : DomainEvent
 	}
 }
 
-public class OrderCreatedConsumer : DomainEventsConsumerBase<OrderCreated>
+public class OrderCreatedConsumer : DomainEventConsumerBase<OrderCreated>
 {
 	public OrderCreatedConsumer(RabbitMQReference rabbitMQReference,
 		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory,
-		ISerializer? messageSerializer = null) : base(rabbitMQReference, mufloneConnectionFactory, loggerFactory)
+		ILoggerFactory loggerFactory) : base(rabbitMQReference, mufloneConnectionFactory, loggerFactory)
 	{
 	}
 
-	protected override IEnumerable<IDomainEventHandlerAsync<OrderCreated>> HandlersAsync { get; }
+	protected override IDomainEventHandlerAsync<OrderCreated> HandlerAsync { get; }
 }
