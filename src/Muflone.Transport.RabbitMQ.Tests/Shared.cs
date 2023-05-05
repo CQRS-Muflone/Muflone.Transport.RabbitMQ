@@ -1,4 +1,12 @@
-﻿namespace Muflone.Transport.RabbitMQ.Tests;
+﻿using Microsoft.Extensions.Logging;
+using Muflone.Core;
+using Muflone.Messages.Commands;
+using Muflone.Messages.Events;
+using Muflone.Transport.RabbitMQ.Abstracts;
+using Muflone.Transport.RabbitMQ.Consumers;
+using Muflone.Transport.RabbitMQ.Models;
+
+namespace Muflone.Transport.RabbitMQ.Tests;
 
 public class OrderId : DomainId
 {
