@@ -1,8 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Muflone.Messages;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
+using Muflone.Transport.RabbitMQ.Factories;
 using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -21,12 +23,11 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 	protected abstract IEnumerable<IIntegrationEventHandlerAsync<T>> HandlersAsync { get; }
 
-	protected IntegrationEventsConsumerBase(RabbitMQReference rabbitMQReference,
-		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(loggerFactory)
+	protected IntegrationEventsConsumerBase(IServiceProvider serviceProvider,
+		RabbitMQReference rabbitMQReference) : base(serviceProvider)
 	{
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-		_mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
+		_mufloneConnectionFactory = serviceProvider.GetService<MufloneConnectionFactory>();
 		_messageSerializer = new Serializer();
 
 		TopicName = typeof(T).Name;

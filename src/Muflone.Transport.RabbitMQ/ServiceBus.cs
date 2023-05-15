@@ -1,5 +1,4 @@
-﻿using System.Text;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Muflone.Messages.Commands;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
@@ -7,6 +6,7 @@ using Muflone.Transport.RabbitMQ.Abstracts;
 using Muflone.Transport.RabbitMQ.Models;
 using Polly;
 using RabbitMQ.Client;
+using System.Text;
 
 namespace Muflone.Transport.RabbitMQ;
 
@@ -56,7 +56,7 @@ public class ServiceBus : IServiceBus, IEventBus
 			channel.ExchangeDeclare(_rabbitMQReference.ExchangeCommandsName, ExchangeType.Direct);
 			channel.BasicPublish(
 				_rabbitMQReference.ExchangeCommandsName,
-				_rabbitMQReference.QueueCommandsName,
+				typeof(T).Name,
 				true,
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));
@@ -94,7 +94,7 @@ public class ServiceBus : IServiceBus, IEventBus
 			channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Fanout);
 			channel.BasicPublish(
 				_rabbitMQReference.ExchangeEventsName,
-				_rabbitMQReference.QueueEventsName,
+				typeof(T).Name,
 				true,
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Muflone.Transport.RabbitMQ.Abstracts;
 
@@ -6,14 +7,9 @@ public abstract class ConsumerBase
 {
 	protected readonly ILogger Logger;
 
-	/// <summary>
-	/// For now just as a proxy to pass directly to the Handler this class is wrapping
-	/// </summary>
-	protected ILoggerFactory LoggerFactory { get; }
-
-	protected ConsumerBase(ILoggerFactory loggerFactory)
+	protected ConsumerBase(IServiceProvider serviceProvider)
 	{
-		LoggerFactory = loggerFactory;
-		Logger = loggerFactory.CreateLogger(GetType()) ?? throw new ArgumentNullException(nameof(loggerFactory));
+		var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+		Logger = loggerFactory!.CreateLogger(GetType());
 	}
 }

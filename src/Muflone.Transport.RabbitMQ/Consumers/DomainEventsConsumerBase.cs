@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Muflone.Messages;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
@@ -22,13 +23,11 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 
 	protected abstract IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync { get; }
 
-	protected DomainEventsConsumerBase(RabbitMQReference rabbitMQReference,
-		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(loggerFactory)
+	protected DomainEventsConsumerBase(IServiceProvider serviceProvider,
+		RabbitMQReference rabbitMQReference) : base(serviceProvider)
 	{
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-		_mufloneConnectionFactory =
-			mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
+		_mufloneConnectionFactory = serviceProvider.GetService<IMufloneConnectionFactory>();
 		_messageSerializer = new Serializer();
 		TopicName = typeof(T).Name;
 	}

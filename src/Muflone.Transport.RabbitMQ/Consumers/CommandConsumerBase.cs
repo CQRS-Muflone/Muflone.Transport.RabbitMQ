@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Muflone.Messages;
 using Muflone.Messages.Commands;
@@ -7,6 +7,7 @@ using Muflone.Transport.RabbitMQ.Abstracts;
 using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Text;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
@@ -27,14 +28,15 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	/// </summary>
 	protected IRepository Repository { get; }
 
-	protected CommandConsumerBase(IRepository repository, RabbitMQReference rabbitMQReference,
-		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(loggerFactory)
+	protected CommandConsumerBase(IServiceProvider serviceProvider,
+		RabbitMQReference rabbitMQReference) : base(serviceProvider)
 	{
+		var repository = serviceProvider.GetService<IRepository>();
+
 		Repository = repository ?? throw new ArgumentNullException(nameof(repository));
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-		_mufloneConnectionFactory =
-			mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
+		_mufloneConnectionFactory = serviceProvider.GetService<IMufloneConnectionFactory>();
+
 		_messageSerializer = new Serializer();
 
 		TopicName = typeof(T).Name;
@@ -76,7 +78,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 			false);
 		_channel.QueueBind(_rabbitMQReference.QueueCommandsName,
 			_rabbitMQReference.ExchangeCommandsName,
-			TopicName, //_queueReferences.RoutingKey
+			TopicName,
 			null);
 
 		_channel.CallbackException += OnChannelException;
