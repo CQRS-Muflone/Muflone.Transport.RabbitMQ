@@ -23,11 +23,12 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 
 	protected abstract IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync { get; }
 
-	protected DomainEventsConsumerBase(IServiceProvider serviceProvider,
-		RabbitMQReference rabbitMQReference) : base(serviceProvider)
+	//TODO (Evaluate): Inject a factory instead of services. We have to create a new ISomethingFactory so the user can create whatever he/she likes
+	protected DomainEventsConsumerBase(IMufloneConnectionFactory mufloneConnectionFactory,
+		RabbitMQReference rabbitMQReference, ILoggerFactory loggerFactory) : base(loggerFactory)
 	{
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-		_mufloneConnectionFactory = serviceProvider.GetService<IMufloneConnectionFactory>();
+		_mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
 		_messageSerializer = new Serializer();
 		TopicName = typeof(T).Name;
 	}

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Muflone.Core;
 using Muflone.Messages.Commands;
 using Muflone.Messages.Events;
@@ -39,13 +40,14 @@ public class OrderCreated : DomainEvent
 	}
 }
 
-public class OrderCreatedConsumer : DomainEventConsumerBase<OrderCreated>
+public class OrderCreatedConsumer : DomainEventsConsumerBase<OrderCreated>
 {
-	public OrderCreatedConsumer(RabbitMQReference rabbitMQReference,
+	public OrderCreatedConsumer(IServiceProvider serviceProvider, RabbitMQReference rabbitMQReference,
 		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(rabbitMQReference, mufloneConnectionFactory, loggerFactory)
+		ILoggerFactory loggerFactory) : base(mufloneConnectionFactory, rabbitMQReference, loggerFactory)
 	{
+		HandlersAsync = serviceProvider.GetServices<IDomainEventHandlerAsync<OrderCreated>>();
 	}
 
-	protected override IDomainEventHandlerAsync<OrderCreated> HandlerAsync { get; }
+	protected override IEnumerable<IDomainEventHandlerAsync<OrderCreated>> HandlersAsync { get; }
 }
