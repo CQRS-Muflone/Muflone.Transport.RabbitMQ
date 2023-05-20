@@ -66,9 +66,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 
 		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Fanout);
 		_channel.QueueDeclare(TopicName, true, false, false);
-		_channel.QueueBind(_rabbitMQReference.QueueEventsName,
-			_rabbitMQReference.ExchangeEventsName,
-			TopicName, //_queueReferences.RoutingKey
+		_channel.QueueBind(typeof(T).Name, _rabbitMQReference.ExchangeEventsName, TopicName, //_queueReferences.RoutingKey
 			null);
 
 		_channel.CallbackException += OnChannelException;
