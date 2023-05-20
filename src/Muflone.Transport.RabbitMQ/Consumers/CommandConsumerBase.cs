@@ -74,7 +74,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 			true,
 			false,
 			false);
-		_channel.QueueBind(_rabbitMQReference.QueueCommandsName,
+		_channel.QueueBind(typeof(T).Name,
 			_rabbitMQReference.ExchangeCommandsName,
 			TopicName,
 			null);
