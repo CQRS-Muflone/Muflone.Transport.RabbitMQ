@@ -7,9 +7,8 @@ public abstract class ConsumerBase
 {
 	protected readonly ILogger Logger;
 
-	protected ConsumerBase(IServiceProvider serviceProvider)
+	protected ConsumerBase(ILoggerFactory loggerFactory)
 	{
-		var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-		Logger = loggerFactory!.CreateLogger(GetType());
+		Logger = loggerFactory.CreateLogger(GetType());
 	}
 }

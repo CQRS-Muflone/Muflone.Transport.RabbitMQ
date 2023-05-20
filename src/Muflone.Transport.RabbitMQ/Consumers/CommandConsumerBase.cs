@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Muflone.Messages;
 using Muflone.Messages.Commands;
 using Muflone.Persistence;
@@ -28,14 +27,15 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	/// </summary>
 	protected IRepository Repository { get; }
 
-	protected CommandConsumerBase(IServiceProvider serviceProvider,
-		RabbitMQReference rabbitMQReference) : base(serviceProvider)
+	protected CommandConsumerBase(IServiceProvider serviceProvider, IRepository repository,
+		IMufloneConnectionFactory mufloneConnectionFactory,
+		RabbitMQReference rabbitMQReference, ILoggerFactory loggerFactory) : base(loggerFactory)
 	{
-		var repository = serviceProvider.GetService<IRepository>();
-
 		Repository = repository ?? throw new ArgumentNullException(nameof(repository));
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-		_mufloneConnectionFactory = serviceProvider.GetService<IMufloneConnectionFactory>();
+
+		_mufloneConnectionFactory =
+			mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
 
 		_messageSerializer = new Serializer();
 
