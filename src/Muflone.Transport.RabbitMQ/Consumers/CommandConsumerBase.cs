@@ -27,15 +27,13 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	/// </summary>
 	protected IRepository Repository { get; }
 
-	protected CommandConsumerBase(IServiceProvider serviceProvider, IRepository repository,
-		IMufloneConnectionFactory mufloneConnectionFactory,
+	protected CommandConsumerBase(IRepository repository, IMufloneConnectionFactory mufloneConnectionFactory,
 		RabbitMQReference rabbitMQReference, ILoggerFactory loggerFactory) : base(loggerFactory)
 	{
 		Repository = repository ?? throw new ArgumentNullException(nameof(repository));
 		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
 
-		_mufloneConnectionFactory =
-			mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
+		_mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
 
 		_messageSerializer = new Serializer();
 
