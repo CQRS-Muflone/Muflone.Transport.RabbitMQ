@@ -69,7 +69,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 			true,
 			false,
 			false);
-		_channel.QueueBind(_rabbitMQReference.QueueEventsName,
+		_channel.QueueBind(typeof(T).Name,
 			_rabbitMQReference.ExchangeEventsName,
 			TopicName, //_queueReferences.RoutingKey
 			null);
