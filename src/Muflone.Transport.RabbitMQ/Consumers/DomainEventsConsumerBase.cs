@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Muflone.Messages;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
@@ -64,9 +63,9 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		Logger.LogInformation(
 			$"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeEventsName}'...");
 
-		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Fanout);
+		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Topic);
 		_channel.QueueDeclare(TopicName, true, false, false);
-		_channel.QueueBind(typeof(T).Name, _rabbitMQReference.ExchangeEventsName, TopicName, //_queueReferences.RoutingKey
+		_channel.QueueBind(TopicName, _rabbitMQReference.ExchangeEventsName, TopicName, //_queueReferences.RoutingKey
 			null);
 
 		_channel.CallbackException += OnChannelException;
@@ -125,9 +124,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 			return;
 		}
 
-		Logger.LogInformation(
-			"received message '{MessageId}' from Exchange '{ExchangeName}', Queue '{QueueName}'. Processing...",
-			message.MessageId, TopicName, TopicName);
+		Logger.LogInformation($"received message '{message.MessageId}' from Exchange '{TopicName}', Queue '{TopicName}'. Processing...");
 
 		try
 		{
@@ -145,11 +142,8 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel,
 		IMessage message, bool requeue)
 	{
-		var errorMsg =
-			"an error has occurred while processing Message '{MessageId}' from Exchange '{ExchangeName}' : {ExceptionMessage} . "
-			+ (requeue ? "Reenqueuing..." : "Nacking...");
 
-		Logger.LogWarning(ex, errorMsg, message.MessageId, TopicName, ex.Message);
+		Logger.LogWarning($"an error has occurred while processing Message '{message.MessageId}' from Exchange '{TopicName}' : {ex.Message} . " + (requeue ? "Reenqueuing..." : "Nacking..."));
 
 		if (!requeue)
 		{

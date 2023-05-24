@@ -91,15 +91,15 @@ public class ServiceBus : IServiceBus, IEventBus
 
 		policy.Execute(() =>
 		{
-			channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Fanout);
+			channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Topic);
 			channel.BasicPublish(
 				_rabbitMQReference.ExchangeEventsName,
-				typeof(T).Name,
+				@event.GetType().Name,
 				true,
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));
 
-			_logger.LogInformation("message '{MessageId}' published to Exchange '{ExchangeName}'",
+			_logger.LogInformation($"message '{@event.MessageId}' published to Exchange '{@event.GetType().FullName}'",
 				@event.MessageId,
 				_rabbitMQReference.ExchangeCommandsName);
 		});

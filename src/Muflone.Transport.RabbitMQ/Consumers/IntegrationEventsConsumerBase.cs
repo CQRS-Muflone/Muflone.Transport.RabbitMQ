@@ -1,10 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Muflone.Messages;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
-using Muflone.Transport.RabbitMQ.Factories;
 using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -38,7 +36,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 	public async Task ConsumeAsync(T message, CancellationToken cancellationToken = default)
 	{
 		foreach (var handlerAsync in HandlersAsync)
-			await handlerAsync.HandleAsync((dynamic)message, CancellationToken.None);
+			await handlerAsync.HandleAsync((dynamic)message, cancellationToken);
 	}
 
 	public Task StartAsync(CancellationToken cancellationToken = default)
@@ -64,12 +62,12 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 		Logger.LogInformation(
 			$"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeEventsName}'...");
 
-		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Fanout);
+		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Topic);
 		_channel.QueueDeclare(TopicName,
 			true,
 			false,
 			false);
-		_channel.QueueBind(typeof(T).Name,
+		_channel.QueueBind(TopicName,
 			_rabbitMQReference.ExchangeEventsName,
 			TopicName, //_queueReferences.RoutingKey
 			null);
