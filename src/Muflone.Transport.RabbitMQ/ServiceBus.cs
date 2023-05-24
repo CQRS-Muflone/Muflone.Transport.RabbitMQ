@@ -48,7 +48,7 @@ public class ServiceBus : IServiceBus, IEventBus
 		properties.Persistent = true;
 		properties.Headers = new Dictionary<string, object>()
 		{
-			{ "message-type", command.GetType().FullName }
+			{ "message-type", command.GetType().FullName! }
 		};
 
 		policy.Execute(() =>
@@ -56,12 +56,12 @@ public class ServiceBus : IServiceBus, IEventBus
 			channel.ExchangeDeclare(_rabbitMQReference.ExchangeCommandsName, ExchangeType.Direct);
 			channel.BasicPublish(
 				_rabbitMQReference.ExchangeCommandsName,
-				typeof(T).Name,
+				command.GetType().Name,
 				true,
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));
 
-			_logger.LogInformation("message '{MessageId}' published to Exchange '{ExchangeName}'",
+			_logger.LogInformation($"message '{command.MessageId}' published to Exchange '{_rabbitMQReference.ExchangeCommandsName}'",
 				command.MessageId,
 				_rabbitMQReference.ExchangeCommandsName);
 		});
@@ -86,7 +86,7 @@ public class ServiceBus : IServiceBus, IEventBus
 		properties.Persistent = true;
 		properties.Headers = new Dictionary<string, object>()
 		{
-			{ "message-type", @event.GetType().FullName }
+			{ "message-type", @event.GetType().FullName! }
 		};
 
 		policy.Execute(() =>
@@ -99,7 +99,7 @@ public class ServiceBus : IServiceBus, IEventBus
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));
 
-			_logger.LogInformation($"message '{@event.MessageId}' published to Exchange '{@event.GetType().FullName}'",
+			_logger.LogInformation($"message '{@event.MessageId}' published to Exchange '{_rabbitMQReference.ExchangeEventsName}'",
 				@event.MessageId,
 				_rabbitMQReference.ExchangeCommandsName);
 		});
