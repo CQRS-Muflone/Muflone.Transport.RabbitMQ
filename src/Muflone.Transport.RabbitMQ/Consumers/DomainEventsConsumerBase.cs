@@ -3,41 +3,50 @@ using Muflone.Messages;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
-using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
+using Muflone.Transport.RabbitMQ.Models;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
 public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventConsumer<T>, IAsyncDisposable
-	where T : class, IDomainEvent
+	where T : DomainEvent
 {
 	private readonly ISerializer _messageSerializer;
-	private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
+	private readonly ConsumerConfiguration _configuration;
+	private readonly IMufloneConnectionFactory _connectionFactory;
 	private IModel _channel;
-	private readonly RabbitMQReference _rabbitMQReference;
-
-	public string TopicName { get; }
-
 	protected abstract IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync { get; }
 
-	//TODO (Evaluate): Inject a factory instead of services. We have to create a new ISomethingFactory so the user can create whatever he/she likes
-	protected DomainEventsConsumerBase(IMufloneConnectionFactory mufloneConnectionFactory,
-		RabbitMQReference rabbitMQReference, ILoggerFactory loggerFactory) : base(loggerFactory)
+	protected DomainEventsConsumerBase(IMufloneConnectionFactory connectionFactory,
+		ILoggerFactory loggerFactory)
+		: this(new ConsumerConfiguration(), connectionFactory, loggerFactory)
 	{
-		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-		_mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
+	}
+
+	protected DomainEventsConsumerBase(ConsumerConfiguration configuration,
+		IMufloneConnectionFactory connectionFactory, ILoggerFactory loggerFactory)
+		: base(loggerFactory)
+	{
+		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 		_messageSerializer = new Serializer();
-		TopicName = typeof(T).Name;
+
+		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
+			configuration.ResourceKey = typeof(T).Name;
+		if (string.IsNullOrWhiteSpace(configuration.QueueName))
+		{
+			configuration.QueueName = GetType().Name;
+			if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
+				configuration.QueueName = configuration.QueueName.Substring(0, configuration.QueueName.Length - "Consumer".Length);
+		}
+		_configuration = configuration;
 	}
 
 	public async Task ConsumeAsync(T message, CancellationToken cancellationToken = default)
 	{
 		foreach (var handlerAsync in HandlersAsync)
-		{
-			await handlerAsync.HandleAsync((dynamic)message, CancellationToken.None);
-		}
+			await handlerAsync.HandleAsync(message, cancellationToken);
 	}
 
 	public Task StartAsync(CancellationToken cancellationToken = default)
@@ -56,18 +65,12 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 
 	private void InitChannel()
 	{
+		Logger.LogInformation($"initializing retry queue '{_configuration.QueueName}' on exchange '{_connectionFactory.ExchangeEventsName}'...");
 		StopChannel();
-
-		_channel = _mufloneConnectionFactory.CreateChannel();
-
-		Logger.LogInformation(
-			$"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeEventsName}'...");
-
-		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Topic);
-		_channel.QueueDeclare(TopicName, true, false, false);
-		_channel.QueueBind(TopicName, _rabbitMQReference.ExchangeEventsName, TopicName, //_queueReferences.RoutingKey
-			null);
-
+		_channel = _connectionFactory.CreateChannel();
+		_channel.ExchangeDeclare(_connectionFactory.ExchangeEventsName, ExchangeType.Topic);
+		_channel.QueueDeclare(_configuration.QueueName, true, false, false);
+		_channel.QueueBind(_configuration.QueueName, _connectionFactory.ExchangeEventsName, _configuration.ResourceKey, null);
 		_channel.CallbackException += OnChannelException;
 	}
 
@@ -87,8 +90,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 
 	private void OnChannelException(object _, CallbackExceptionEventArgs ea)
 	{
-		Logger.LogError(ea.Exception, "the RabbitMQ Channel has encountered an error: {ExceptionMessage}",
-			ea.Exception.Message);
+		Logger.LogError(ea.Exception, $"The RabbitMQ Channel has encountered an error: {ea.Exception.Message}");
 
 		InitChannel();
 		InitSubscription();
@@ -100,8 +102,8 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 
 		consumer.Received += OnMessageReceivedAsync;
 
-		Logger.LogInformation($"initializing subscription on queue '{TopicName}' ...");
-		_channel.BasicConsume(TopicName, false, consumer);
+		Logger.LogInformation($"Initializing subscription on queue '{_configuration.QueueName}' with ResourceKey '{_configuration.ResourceKey}' ...");
+		_channel.BasicConsume(_configuration.QueueName, false, consumer);
 	}
 
 	private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)
@@ -109,7 +111,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		var consumer = sender as IBasicConsumer;
 		var channel = consumer?.Model ?? _channel;
 
-		IDomainEvent message;
+		DomainEvent message;
 		try
 		{
 			message = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
@@ -124,7 +126,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 			return;
 		}
 
-		Logger.LogInformation($"received message '{message.MessageId}' from Exchange '{TopicName}', Queue '{TopicName}'. Processing...");
+		Logger.LogInformation($"Received message '{message.MessageId}' from Exchange '{_connectionFactory.ExchangeEventsName}', Queue '{_configuration.QueueName}'. Processing...");
 
 		try
 		{
@@ -139,11 +141,9 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		}
 	}
 
-	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel,
-		IMessage message, bool requeue)
+	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel, IMessage message, bool requeue)
 	{
-
-		Logger.LogWarning($"an error has occurred while processing Message '{message.MessageId}' from Exchange '{TopicName}' : {ex.Message} . " + (requeue ? "Reenqueuing..." : "Nacking..."));
+		Logger.LogWarning(ex, $"An error has occurred while processing Message '{message.MessageId}' from Exchange '{deliveryProps.Exchange}' : {ex.Message}. {(requeue ? "Reenqueuing..." : "Nacking...")}");
 
 		if (!requeue)
 		{
@@ -152,11 +152,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		else
 		{
 			channel.BasicAck(deliveryProps.DeliveryTag, false);
-			channel.BasicPublish(
-				TopicName,
-				deliveryProps.RoutingKey,
-				deliveryProps.BasicProperties,
-				deliveryProps.Body);
+			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties, deliveryProps.Body);
 		}
 	}
 

@@ -3,7 +3,6 @@ using Muflone.Messages.Commands;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
-using Muflone.Transport.RabbitMQ.Models;
 using Polly;
 using RabbitMQ.Client;
 using System.Text;
@@ -12,19 +11,13 @@ namespace Muflone.Transport.RabbitMQ;
 
 public class ServiceBus : IServiceBus, IEventBus
 {
-	private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
-	private readonly RabbitMQReference _rabbitMQReference;
+	private readonly IMufloneConnectionFactory _connectionFactory;
 	private readonly ISerializer _messageSerializer;
 	private readonly ILogger _logger;
 
-	public ServiceBus(IMufloneConnectionFactory mufloneConnectionFactory,
-		RabbitMQReference rabbitMQReference,
-		ILoggerFactory loggerFactory,
-		ISerializer? messageSerializer = null)
+	public ServiceBus(IMufloneConnectionFactory mufloneConnectionFactory, ILoggerFactory loggerFactory, ISerializer? messageSerializer = null)
 	{
-		_mufloneConnectionFactory =
-			mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
-		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
+		_connectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
 		_messageSerializer = messageSerializer ?? new Serializer();
 		_logger = loggerFactory.CreateLogger(GetType()) ?? throw new ArgumentNullException(nameof(loggerFactory));
 	}
@@ -39,11 +32,11 @@ public class ServiceBus : IServiceBus, IEventBus
 				_logger.LogWarning(ex,
 					"Could not publish message '{MessageId}' to Exchange '{ExchangeName}', after {Timeout}s : {ExceptionMessage}",
 					command.MessageId,
-					_rabbitMQReference.ExchangeCommandsName,
+					_connectionFactory.ExchangeCommandsName,
 					$"{time.TotalSeconds:n1}", ex.Message);
 			});
 
-		var channel = _mufloneConnectionFactory.CreateChannel();
+		var channel = _connectionFactory.CreateChannel();
 		var properties = channel.CreateBasicProperties();
 		properties.Persistent = true;
 		properties.Headers = new Dictionary<string, object>()
@@ -53,17 +46,17 @@ public class ServiceBus : IServiceBus, IEventBus
 
 		policy.Execute(() =>
 		{
-			channel.ExchangeDeclare(_rabbitMQReference.ExchangeCommandsName, ExchangeType.Direct);
+			channel.ExchangeDeclare(_connectionFactory.ExchangeCommandsName, ExchangeType.Direct);
 			channel.BasicPublish(
-				_rabbitMQReference.ExchangeCommandsName,
+				_connectionFactory.ExchangeCommandsName,
 				command.GetType().Name,
 				true,
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));
 
-			_logger.LogInformation($"message '{command.MessageId}' published to Exchange '{_rabbitMQReference.ExchangeCommandsName}'",
+			_logger.LogInformation($"message '{command.MessageId}' published to Exchange '{_connectionFactory.ExchangeCommandsName}'",
 				command.MessageId,
-				_rabbitMQReference.ExchangeCommandsName);
+				_connectionFactory.ExchangeCommandsName);
 		});
 	}
 
@@ -77,11 +70,11 @@ public class ServiceBus : IServiceBus, IEventBus
 				_logger.LogWarning(ex,
 					"Could not publish message '{MessageId}' to Exchange '{ExchangeName}', after {Timeout}s : {ExceptionMessage}",
 					@event.MessageId,
-					_rabbitMQReference.ExchangeCommandsName,
+					_connectionFactory.ExchangeCommandsName,
 					$"{time.TotalSeconds:n1}", ex.Message);
 			});
 
-		var channel = _mufloneConnectionFactory.CreateChannel();
+		var channel = _connectionFactory.CreateChannel();
 		var properties = channel.CreateBasicProperties();
 		properties.Persistent = true;
 		properties.Headers = new Dictionary<string, object>()
@@ -91,17 +84,15 @@ public class ServiceBus : IServiceBus, IEventBus
 
 		policy.Execute(() =>
 		{
-			channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Topic);
+			channel.ExchangeDeclare(_connectionFactory.ExchangeEventsName, ExchangeType.Topic);
 			channel.BasicPublish(
-				_rabbitMQReference.ExchangeEventsName,
+				_connectionFactory.ExchangeEventsName,
 				@event.GetType().Name,
 				true,
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));
 
-			_logger.LogInformation($"message '{@event.MessageId}' published to Exchange '{_rabbitMQReference.ExchangeEventsName}'",
-				@event.MessageId,
-				_rabbitMQReference.ExchangeCommandsName);
+			_logger.LogInformation($"message '{@event.MessageId}' published to Exchange '{_connectionFactory.ExchangeEventsName}'");
 		});
 	}
 }

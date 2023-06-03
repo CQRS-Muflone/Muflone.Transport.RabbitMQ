@@ -11,10 +11,9 @@ public static class TransportRabbitMQHelper
 {
 	public static IServiceCollection AddMufloneTransportRabbitMQ(this IServiceCollection services,
 		ILoggerFactory loggerFactory,
-		RabbitMQConfiguration rabbitMQConfiguration, RabbitMQReference rabbitMQReference)
+		RabbitMQConfiguration rabbitMQConfiguration)
 	{
 		services.AddSingleton(new MufloneConnectionFactory(rabbitMQConfiguration, loggerFactory));
-		services.AddSingleton(rabbitMQReference);
 		services.AddSingleton(rabbitMQConfiguration);
 		services.AddSingleton<IMufloneConnectionFactory, MufloneConnectionFactory>();
 		services.AddSingleton<IServiceBus, ServiceBus>();
