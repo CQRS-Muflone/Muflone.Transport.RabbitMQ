@@ -42,9 +42,8 @@ public class OrderCreated : DomainEvent
 
 public class OrderCreatedConsumer : DomainEventsConsumerBase<OrderCreated>
 {
-	public OrderCreatedConsumer(IServiceProvider serviceProvider, RabbitMQReference rabbitMQReference,
-		IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(mufloneConnectionFactory, rabbitMQReference, loggerFactory)
+	public OrderCreatedConsumer(IServiceProvider serviceProvider, IMufloneConnectionFactory mufloneConnectionFactory,
+		ILoggerFactory loggerFactory) : base(mufloneConnectionFactory, loggerFactory)
 	{
 		HandlersAsync = serviceProvider.GetServices<IDomainEventHandlerAsync<OrderCreated>>();
 	}

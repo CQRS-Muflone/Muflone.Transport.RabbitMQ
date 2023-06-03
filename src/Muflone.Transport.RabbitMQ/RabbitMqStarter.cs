@@ -17,5 +17,9 @@ public class RabbitMqStarter : IHostedService
 		foreach (var consumer in _consumers) consumer.StartAsync(cancellationToken);
 		return Task.CompletedTask;
 	}
-	public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+	public Task StopAsync(CancellationToken cancellationToken)
+	{
+		return Task.CompletedTask;
+	}
 }
