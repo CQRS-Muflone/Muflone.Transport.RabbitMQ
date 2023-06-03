@@ -5,22 +5,21 @@ namespace Muflone.Transport.RabbitMQ.Abstracts;
 
 public interface IConsumer
 {
-	string TopicName { get; }
 	Task StartAsync(CancellationToken cancellationToken = default);
 	Task StopAsync(CancellationToken cancellationToken = default);
 }
 
-public interface IDomainEventConsumer<in T> : IConsumer where T : class, IDomainEvent
+public interface IDomainEventConsumer<in T> : IConsumer where T : DomainEvent
 {
 	Task ConsumeAsync(T message, CancellationToken cancellationToken = default);
 }
 
-public interface IIntegrationEventConsumer<in T> : IConsumer where T : class, IIntegrationEvent
+public interface IIntegrationEventConsumer<in T> : IConsumer where T : IntegrationEvent
 {
 	Task ConsumeAsync(T message, CancellationToken cancellationToken = default);
 }
 
-public interface ICommandConsumer<in T> : IConsumer where T : class, ICommand
+public interface ICommandConsumer<in T> : IConsumer where T : Command
 {
 	Task ConsumeAsync(T message, CancellationToken cancellationToken = default);
 }

@@ -3,40 +3,52 @@ using Muflone.Messages;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
-using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
+using Muflone.Transport.RabbitMQ.Models;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
 public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrationEventConsumer<T>, IAsyncDisposable
-	where T : class, IIntegrationEvent
+	where T : IntegrationEvent
 {
 	private readonly ISerializer _messageSerializer;
-	private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
+	private readonly ConsumerConfiguration _configuration;
+	private readonly IMufloneConnectionFactory _connectionFactory;
 	private IModel _channel;
-	private readonly RabbitMQReference _rabbitMQReference;
-
-	public string TopicName { get; }
-
 	protected abstract IEnumerable<IIntegrationEventHandlerAsync<T>> HandlersAsync { get; }
 
 	protected IntegrationEventsConsumerBase(IMufloneConnectionFactory mufloneConnectionFactory,
-		RabbitMQReference rabbitMQReference, ILoggerFactory loggerFactory) : base(loggerFactory)
+		ILoggerFactory loggerFactory)
+		: this(new ConsumerConfiguration(), mufloneConnectionFactory, loggerFactory)
 	{
-		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
-		_mufloneConnectionFactory =
-			mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
+	}
+
+	protected IntegrationEventsConsumerBase(ConsumerConfiguration configuration,
+		IMufloneConnectionFactory connectionFactory, ILoggerFactory loggerFactory)
+		: base(loggerFactory)
+	{
+		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 		_messageSerializer = new Serializer();
 
-		TopicName = typeof(T).Name;
+		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
+			configuration.ResourceKey = typeof(T).Name;
+		if (string.IsNullOrWhiteSpace(configuration.QueueName))
+		{
+			configuration.QueueName = GetType().Name;
+			if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
+				configuration.QueueName =
+					configuration.QueueName.Substring(0, configuration.QueueName.Length - "Consumer".Length);
+		}
+
+		_configuration = configuration;
 	}
 
 	public async Task ConsumeAsync(T message, CancellationToken cancellationToken = default)
 	{
 		foreach (var handlerAsync in HandlersAsync)
-			await handlerAsync.HandleAsync((dynamic)message, cancellationToken);
+			await handlerAsync.HandleAsync(message, cancellationToken);
 	}
 
 	public Task StartAsync(CancellationToken cancellationToken = default)
@@ -55,23 +67,14 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 	private void InitChannel()
 	{
-		StopChannel();
-
-		_channel = _mufloneConnectionFactory.CreateChannel();
-
 		Logger.LogInformation(
-			$"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeEventsName}'...");
-
-		_channel.ExchangeDeclare(_rabbitMQReference.ExchangeEventsName, ExchangeType.Topic);
-		_channel.QueueDeclare(TopicName,
-			true,
-			false,
-			false);
-		_channel.QueueBind(TopicName,
-			_rabbitMQReference.ExchangeEventsName,
-			TopicName, //_queueReferences.RoutingKey
+			$"initializing retry queue '{_configuration.QueueName}' on exchange '{_connectionFactory.ExchangeEventsName}'...");
+		StopChannel();
+		_channel = _connectionFactory.CreateChannel();
+		_channel.ExchangeDeclare(_connectionFactory.ExchangeEventsName, ExchangeType.Topic);
+		_channel.QueueDeclare(_configuration.QueueName, true, false, false);
+		_channel.QueueBind(_configuration.QueueName, _connectionFactory.ExchangeEventsName, _configuration.ResourceKey,
 			null);
-
 		_channel.CallbackException += OnChannelException;
 	}
 
@@ -91,8 +94,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 	private void OnChannelException(object _, CallbackExceptionEventArgs ea)
 	{
-		Logger.LogError(ea.Exception, "the RabbitMQ Channel has encountered an error: {ExceptionMessage}",
-			ea.Exception.Message);
+		Logger.LogError(ea.Exception, $"The RabbitMQ Channel has encountered an error: {ea.Exception.Message}");
 
 		InitChannel();
 		InitSubscription();
@@ -104,8 +106,9 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 		consumer.Received += OnMessageReceivedAsync;
 
-		Logger.LogInformation($"initializing subscription on queue '{TopicName}' ...");
-		_channel.BasicConsume(TopicName, false, consumer);
+		Logger.LogInformation(
+			$"Initializing subscription on queue '{_configuration.QueueName}' with ResourceKey '{_configuration.ResourceKey}' ...");
+		_channel.BasicConsume(_configuration.QueueName, false, consumer);
 	}
 
 	private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)
@@ -113,7 +116,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 		var consumer = sender as IBasicConsumer;
 		var channel = consumer?.Model ?? _channel;
 
-		IIntegrationEvent message;
+		IntegrationEvent message;
 		try
 		{
 			message = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
@@ -129,8 +132,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 		}
 
 		Logger.LogInformation(
-			"received message '{MessageId}' from Exchange '{ExchangeName}', Queue '{QueueName}'. Processing...",
-			message.MessageId, TopicName, TopicName);
+			$"Received message '{message.MessageId}' from Exchange '{_connectionFactory.ExchangeEventsName}', Queue '{_configuration.QueueName}'. Processing...");
 
 		try
 		{
@@ -148,11 +150,8 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel,
 		IMessage message, bool requeue)
 	{
-		var errorMsg =
-			"an error has occurred while processing Message '{MessageId}' from Exchange '{ExchangeName}' : {ExceptionMessage} . "
-			+ (requeue ? "Reenqueuing..." : "Nacking...");
-
-		Logger.LogWarning(ex, errorMsg, message.MessageId, TopicName, ex.Message);
+		Logger.LogWarning(ex,
+			$"An error has occurred while processing Message '{message.MessageId}' from Exchange '{deliveryProps.Exchange}' : {ex.Message}. {(requeue ? "Reenqueuing..." : "Nacking...")}");
 
 		if (!requeue)
 		{
@@ -161,10 +160,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 		else
 		{
 			channel.BasicAck(deliveryProps.DeliveryTag, false);
-			channel.BasicPublish(
-				TopicName,
-				deliveryProps.RoutingKey,
-				deliveryProps.BasicProperties,
+			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties,
 				deliveryProps.Body);
 		}
 	}

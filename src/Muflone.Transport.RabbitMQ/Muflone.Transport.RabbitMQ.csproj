@@ -15,7 +15,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Version>6.1.9</Version>
+    <Version>6.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,10 +25,6 @@
     <PackageReference Include="Muflone" Version="6.2.0" />
     <PackageReference Include="Polly" Version="7.2.3" />
     <PackageReference Include="RabbitMQ.Client" Version="6.5.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Models\" />
   </ItemGroup>
 
   <ItemGroup>

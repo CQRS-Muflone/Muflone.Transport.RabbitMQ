@@ -11,15 +11,18 @@ public class MufloneConnectionFactory : IMufloneConnectionFactory
 	public IConnection Connection { get; private set; } = default!;
 
 	protected bool IsConnected => Connection is { IsOpen: true };
+	public string ExchangeCommandsName { get; }
+	public string ExchangeEventsName { get; }
 
 	private readonly RabbitMQConfiguration _rabbitMQConfiguration;
 	private readonly ILogger _logger;
 
 	public MufloneConnectionFactory(RabbitMQConfiguration rabbitMQConfiguration, ILoggerFactory loggerFactory)
 	{
-		_rabbitMQConfiguration = rabbitMQConfiguration ?? throw new ArgumentNullException(nameof(rabbitMQConfiguration));
 		_logger = loggerFactory.CreateLogger(GetType()) ?? throw new ArgumentNullException(nameof(loggerFactory));
-
+		_rabbitMQConfiguration = rabbitMQConfiguration ?? throw new ArgumentNullException(nameof(rabbitMQConfiguration));
+		ExchangeCommandsName = rabbitMQConfiguration.ExchangeCommandsName;
+		ExchangeEventsName = rabbitMQConfiguration.ExchangeEventsName;
 		TryCreateConnection();
 	}
 
@@ -30,6 +33,7 @@ public class MufloneConnectionFactory : IMufloneConnectionFactory
 
 		return Connection.CreateModel();
 	}
+
 
 	private void TryCreateConnection()
 	{
