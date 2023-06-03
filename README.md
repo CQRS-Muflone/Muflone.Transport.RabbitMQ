@@ -5,45 +5,29 @@ Muflone extension to manage queues, and topics on RabbitMQ.
 `Install-Package Muflone.Transport.RabbitMQ`
 
 
-### 2023-04-23 Breaking changes
-- Renamed class `DomainEventsConsumerBase` to `DomainEventConsumerBase`
-- Added `IRepository` in the ConsumerBase's constructor
-- Now ConsumerBase's `LoggerFactory` is public and not private anymore. We can now use it in something like that:
-
-      public class CreateCartConsumer : CommandConsumerBase<CreateCart>
-      {
-          public CreateCartConsumer(IRepository repository, RabbitMQReference rabbitMQReference, IMufloneConnectionFactory mufloneConnectionFactory, ILoggerFactory loggerFactory)
-          : base(repository, rabbitMQReference, mufloneConnectionFactory, loggerFactory)
-          {
-  
-          }
-  
-          protected override ICommandHandlerAsync<CreateCart> HandlerAsync => new CreateCartCommandHandler(Repository, LoggerFactory);
-      }
-
-- Changed, property of `DomainEventConsumerBase` from `IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync` to `IDomainEventHandlerAsync<T> HandlerAsync`
-
-### Sample ###
+### Implementation ###
 It's very simple to register RabbitMQ's transport
 
     public IServiceCollection RegisterModule(WebApplicationBuilder builder)
     {
-        var rabbitMQConfiguration = new RabbitMQConfiguration("localhost", "myuser", "mypassword", "Muflone");
-        var rabbitMQReference =
-            new RabbitMQReference("MufloneCommands", "CreateOrder", "MufloneEvents", "OrderCreated");
-        var mufloneConnectionFactory = new MufloneConnectionFactory(rabbitMQConfiguration, new NullLoggerFactory());
+        var rabbitMQConfiguration = new RabbitMQConfiguration("localhost", "myuser", "mypassword", "ExchangeCommandsName", "ExchangeForEventsName");
+        var connectionFactory = new MufloneConnectionFactory(rabbitMQConfiguration, MyLoggerFactory);
     
         builder.Services.AddScoped<ICommandHandlerAsync<CreateOrder>, CreateOrderCommandHandler>();
         builder.Services.AddScoped<IDomainEventHandlerAsync<OrderCreated>, OrderCreatedEventHandler>();
     
-        var conumsers = new List<IConsumer>
+        builder.Services.AddMufloneTransportRabbitMQ(loggerFactory, rabbitMQConfiguration);
+
+        //We need to call a build if we need the service bus or other things registered in Muflone.RabbitMQ
+        serviceProvider = builder.Services.BuildServiceProvider();
+        builder.Services.AddMufloneRabbitMQConsumers(new List<IConsumer>
         {
-            new CreateOrderConsumer(rabbitMQReference, mufloneConnectionFactory, new NullLoggerFactory()),
-            new OrderCreatedConsumer(rabbitMQReference, mufloneConnectionFactory, new NullLoggerFactory())
+            new BeersReceivedConsumer(serviceProvider.GetRequiredService<IServiceBus>(), connectionFactory,	MyLoggerFactory),
+            new CreateOrderConsumer(connectionFactory, MyLoggerFactory),
+            new OrderCreatedConsumer(connectionFactory, MyLoggerFactory)
         };
-    
-        builder.Services.AddMufloneTransportRabbitMQ(rabbitMQConfiguration, rabbitMQReference, conumsers);
-    
         return builder.Services;
     }
 
+### Fully working example
+You can find a fully working example here: https://github.com/BrewUp/
