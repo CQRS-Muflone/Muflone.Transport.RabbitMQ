@@ -9,11 +9,11 @@ public class PublishEventTest
 	[Fact]
 	public async Task Can_Publish_Event()
 	{
-		var rabbitMQConfiguration = new RabbitMQConfiguration("localhost", "myuser", "mypassword", "Muflone");
-		var rabbitMQReference = new RabbitMQReference("MufloneCommands", "CreateOrder", "MufloneEvents", "OrderCreated");
+		var rabbitMQConfiguration =
+			new RabbitMQConfiguration("localhost", "myuser", "mypassword", "MufloneCommands", "MufloneEvents");
 		var mufloneConnectionFactory = new MufloneConnectionFactory(rabbitMQConfiguration, new NullLoggerFactory());
 
-		var serviceBus = new ServiceBus(mufloneConnectionFactory, rabbitMQReference, new NullLoggerFactory());
+		var serviceBus = new ServiceBus(mufloneConnectionFactory, new NullLoggerFactory());
 		var orderCreated = new OrderCreated(new OrderId(Guid.NewGuid()), "20221020-01");
 		await serviceBus.PublishAsync(orderCreated, CancellationToken.None);
 	}
@@ -21,8 +21,8 @@ public class PublishEventTest
 	[Fact(Skip = "Not completed")]
 	public async Task Can_Handle_Event()
 	{
-		var rabbitMQConfiguration = new RabbitMQConfiguration("localhost", "myuser", "mypassword", "Muflone");
-		var rabbitMQReference = new RabbitMQReference("MufloneCommands", "CreateOrder", "MufloneEvents", "OrderCreated");
+		var rabbitMQConfiguration =
+			new RabbitMQConfiguration("localhost", "myuser", "mypassword", "MufloneCommands", "MufloneEvents");
 		var mufloneConnectionFactory = new MufloneConnectionFactory(rabbitMQConfiguration, new NullLoggerFactory());
 
 		//TODO: Create a MOQ for the servcieprovider

@@ -18,13 +18,13 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	private readonly IMufloneConnectionFactory _connectionFactory;
 	private IModel _channel;
 	protected abstract ICommandHandlerAsync<T> HandlerAsync { get; }
-	
+
 	/// <summary>
 	/// For now just as a proxy to pass directly to the Handler this class is wrapping
 	/// </summary>
 	protected IRepository Repository { get; }
 
-	
+
 	protected CommandConsumerBase(IRepository repository, IMufloneConnectionFactory connectionFactory,
 		ILoggerFactory loggerFactory)
 		: this(new ConsumerConfiguration(), repository, connectionFactory, loggerFactory)
@@ -52,7 +52,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 
 		_configuration = configuration;
 	}
-	
+
 	public async Task ConsumeAsync(T message, CancellationToken cancellationToken = default)
 	{
 		await HandlerAsync.HandleAsync(message, cancellationToken);
@@ -145,7 +145,8 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 			return;
 		}
 
-		Logger.LogInformation($"Received message '{command.MessageId}' from Exchange '{_connectionFactory.ExchangeCommandsName}', Queue '{_configuration.QueueName}'. Processing...");
+		Logger.LogInformation(
+			$"Received message '{command.MessageId}' from Exchange '{_connectionFactory.ExchangeCommandsName}', Queue '{_configuration.QueueName}'. Processing...");
 
 		try
 		{
@@ -160,9 +161,11 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		}
 	}
 
-	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel, IMessage message, bool requeue)
+	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel,
+		IMessage message, bool requeue)
 	{
-		var errorMsg = $"An error has occurred while processing Message '{message.MessageId}' from Exchange '{deliveryProps.Exchange}' : {ex.Message} . {(requeue ? "Reenqueuing..." : "Nacking...")}";
+		var errorMsg =
+			$"An error has occurred while processing Message '{message.MessageId}' from Exchange '{deliveryProps.Exchange}' : {ex.Message} . {(requeue ? "Reenqueuing..." : "Nacking...")}";
 		Logger.LogWarning(ex, errorMsg);
 
 		if (!requeue)
@@ -172,7 +175,8 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		else
 		{
 			channel.BasicAck(deliveryProps.DeliveryTag, false);
-			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties, deliveryProps.Body);
+			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties,
+				deliveryProps.Body);
 		}
 	}
 

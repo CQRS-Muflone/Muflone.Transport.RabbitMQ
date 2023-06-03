@@ -23,10 +23,10 @@ public static class TransportRabbitMQHelper
 		return services;
 	}
 
-	public static IServiceCollection AddMufloneRabbitMQConsumers(this IServiceCollection services, IEnumerable<IConsumer> consumers)
+	public static IServiceCollection AddMufloneRabbitMQConsumers(this IServiceCollection services,
+		IEnumerable<IConsumer> consumers)
 	{
 		services.AddSingleton(consumers);
 		return services;
 	}
-
 }

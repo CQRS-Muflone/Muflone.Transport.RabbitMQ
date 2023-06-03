@@ -34,12 +34,14 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
 			configuration.ResourceKey = typeof(T).Name;
-	if (string.IsNullOrWhiteSpace(configuration.QueueName))
+		if (string.IsNullOrWhiteSpace(configuration.QueueName))
 		{
 			configuration.QueueName = GetType().Name;
 			if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
-				configuration.QueueName = configuration.QueueName.Substring(0, configuration.QueueName.Length - "Consumer".Length);
+				configuration.QueueName =
+					configuration.QueueName.Substring(0, configuration.QueueName.Length - "Consumer".Length);
 		}
+
 		_configuration = configuration;
 	}
 
@@ -65,12 +67,14 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 	private void InitChannel()
 	{
-		Logger.LogInformation($"initializing retry queue '{_configuration.QueueName}' on exchange '{_connectionFactory.ExchangeEventsName}'...");
+		Logger.LogInformation(
+			$"initializing retry queue '{_configuration.QueueName}' on exchange '{_connectionFactory.ExchangeEventsName}'...");
 		StopChannel();
 		_channel = _connectionFactory.CreateChannel();
 		_channel.ExchangeDeclare(_connectionFactory.ExchangeEventsName, ExchangeType.Topic);
 		_channel.QueueDeclare(_configuration.QueueName, true, false, false);
-		_channel.QueueBind(_configuration.QueueName, _connectionFactory.ExchangeEventsName, _configuration.ResourceKey, null);
+		_channel.QueueBind(_configuration.QueueName, _connectionFactory.ExchangeEventsName, _configuration.ResourceKey,
+			null);
 		_channel.CallbackException += OnChannelException;
 	}
 
@@ -102,7 +106,8 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 		consumer.Received += OnMessageReceivedAsync;
 
-		Logger.LogInformation($"Initializing subscription on queue '{_configuration.QueueName}' with ResourceKey '{_configuration.ResourceKey}' ...");
+		Logger.LogInformation(
+			$"Initializing subscription on queue '{_configuration.QueueName}' with ResourceKey '{_configuration.ResourceKey}' ...");
 		_channel.BasicConsume(_configuration.QueueName, false, consumer);
 	}
 
@@ -126,7 +131,8 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 			return;
 		}
 
-		Logger.LogInformation($"Received message '{message.MessageId}' from Exchange '{_connectionFactory.ExchangeEventsName}', Queue '{_configuration.QueueName}'. Processing...");
+		Logger.LogInformation(
+			$"Received message '{message.MessageId}' from Exchange '{_connectionFactory.ExchangeEventsName}', Queue '{_configuration.QueueName}'. Processing...");
 
 		try
 		{
@@ -141,9 +147,11 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 		}
 	}
 
-	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel, IMessage message, bool requeue)
+	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel,
+		IMessage message, bool requeue)
 	{
-		Logger.LogWarning(ex, $"An error has occurred while processing Message '{message.MessageId}' from Exchange '{deliveryProps.Exchange}' : {ex.Message}. {(requeue ? "Reenqueuing..." : "Nacking...")}");
+		Logger.LogWarning(ex,
+			$"An error has occurred while processing Message '{message.MessageId}' from Exchange '{deliveryProps.Exchange}' : {ex.Message}. {(requeue ? "Reenqueuing..." : "Nacking...")}");
 
 		if (!requeue)
 		{
@@ -152,7 +160,8 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 		else
 		{
 			channel.BasicAck(deliveryProps.DeliveryTag, false);
-			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties, deliveryProps.Body);
+			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties,
+				deliveryProps.Body);
 		}
 	}
 

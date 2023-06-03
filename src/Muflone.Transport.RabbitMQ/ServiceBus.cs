@@ -15,7 +15,8 @@ public class ServiceBus : IServiceBus, IEventBus
 	private readonly ISerializer _messageSerializer;
 	private readonly ILogger _logger;
 
-	public ServiceBus(IMufloneConnectionFactory mufloneConnectionFactory, ILoggerFactory loggerFactory, ISerializer? messageSerializer = null)
+	public ServiceBus(IMufloneConnectionFactory mufloneConnectionFactory, ILoggerFactory loggerFactory,
+		ISerializer? messageSerializer = null)
 	{
 		_connectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
 		_messageSerializer = messageSerializer ?? new Serializer();
@@ -54,7 +55,8 @@ public class ServiceBus : IServiceBus, IEventBus
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));
 
-			_logger.LogInformation($"message '{command.MessageId}' published to Exchange '{_connectionFactory.ExchangeCommandsName}'",
+			_logger.LogInformation(
+				$"message '{command.MessageId}' published to Exchange '{_connectionFactory.ExchangeCommandsName}'",
 				command.MessageId,
 				_connectionFactory.ExchangeCommandsName);
 		});
@@ -92,7 +94,8 @@ public class ServiceBus : IServiceBus, IEventBus
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));
 
-			_logger.LogInformation($"message '{@event.MessageId}' published to Exchange '{_connectionFactory.ExchangeEventsName}'");
+			_logger.LogInformation(
+				$"message '{@event.MessageId}' published to Exchange '{_connectionFactory.ExchangeEventsName}'");
 		});
 	}
 }

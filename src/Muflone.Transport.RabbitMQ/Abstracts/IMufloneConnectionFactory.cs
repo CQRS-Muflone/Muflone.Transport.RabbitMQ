@@ -6,7 +6,6 @@ public interface IMufloneConnectionFactory
 {
 	IConnection Connection { get; }
 	IModel CreateChannel();
-	string ExchangeCommandsName { get;  }
+	string ExchangeCommandsName { get; }
 	string ExchangeEventsName { get; }
-
 }
