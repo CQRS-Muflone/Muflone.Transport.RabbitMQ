@@ -4,7 +4,6 @@ using Muflone.Messages;
 using Muflone.Messages.Commands;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
-using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
@@ -16,24 +15,21 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	private readonly ISerializer _messageSerializer;
 	private readonly IMufloneConnectionFactory _mufloneConnectionFactory;
 	private IModel _channel;
-	private readonly RabbitMQReference _rabbitMQReference;
 
-	protected abstract ICommandHandlerAsync<T>? HandlerAsync { get; set; }
+	protected abstract ICommandHandlerAsync<T> HandlerAsync { get; set; }
 
 	public string TopicName { get; }
 
-	protected CommandConsumerBase(RabbitMQReference rabbitMQReference,
-		IMufloneConnectionFactory mufloneConnectionFactory,
+	protected CommandConsumerBase(IMufloneConnectionFactory mufloneConnectionFactory,
 		IServiceProvider serviceProvider,
 		ILoggerFactory loggerFactory) : base(loggerFactory)
 	{
-		_rabbitMQReference = rabbitMQReference ?? throw new ArgumentNullException(nameof(rabbitMQReference));
 		_mufloneConnectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));
 		_messageSerializer = new Serializer();
 
 		TopicName = typeof(T).Name;
 
-		HandlerAsync = serviceProvider.GetService<ICommandHandlerAsync<T>>();
+		HandlerAsync = serviceProvider.GetRequiredService<ICommandHandlerAsync<T>>();
 	}
 
 	public async Task ConsumeAsync(T message, CancellationToken cancellationToken = default)
@@ -62,16 +58,16 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 
 		_channel = _mufloneConnectionFactory.CreateChannel();
 
-		Logger.LogInformation($"initializing retry queue '{TopicName}' on exchange '{_rabbitMQReference.ExchangeCommandsName}'...");
+		Logger.LogInformation($"initializing retry queue '{TopicName}' on exchange '{_mufloneConnectionFactory.ExchangeCommandsName}'...");
 
-		_channel.ExchangeDeclare(exchange: _rabbitMQReference.ExchangeCommandsName, type: ExchangeType.Direct);
+		_channel.ExchangeDeclare(exchange: _mufloneConnectionFactory.ExchangeCommandsName, type: ExchangeType.Direct);
 		_channel.QueueDeclare(queue: TopicName,
 			durable: true,
 			exclusive: false,
 			autoDelete: false);
-		_channel.QueueBind(queue: _rabbitMQReference.QueueCommandsName,
-			exchange: _rabbitMQReference.ExchangeCommandsName,
-			routingKey: TopicName, //_queueReferences.RoutingKey
+		_channel.QueueBind(queue: $"{_mufloneConnectionFactory.ClientId}.{TopicName}",
+			exchange: _mufloneConnectionFactory.ExchangeCommandsName,
+			routingKey: TopicName,
 			arguments: null);
 
 		_channel.CallbackException += OnChannelException;
