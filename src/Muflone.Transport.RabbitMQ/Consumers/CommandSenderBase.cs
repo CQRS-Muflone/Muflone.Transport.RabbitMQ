@@ -1,4 +1,11 @@
-﻿namespace Muflone.Transport.RabbitMQ.Consumers;
+﻿using Microsoft.Extensions.Logging;
+using Muflone.Messages.Commands;
+using Muflone.Transport.RabbitMQ.Abstracts;
+using Muflone.Transport.RabbitMQ.Models;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
+
+namespace Muflone.Transport.RabbitMQ.Consumers;
 
 public abstract class CommandSenderBase<T> : ConsumerBase, ICommandSender<T>, IAsyncDisposable
 	where T : Command
@@ -16,7 +23,6 @@ public abstract class CommandSenderBase<T> : ConsumerBase, ICommandSender<T>, IA
 	protected CommandSenderBase(ConsumerConfiguration configuration, IMufloneConnectionFactory connectionFactory,
 		ILoggerFactory loggerFactory) : base(loggerFactory)
 	{
-		Repository = repository ?? throw new ArgumentNullException(nameof(repository));
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
