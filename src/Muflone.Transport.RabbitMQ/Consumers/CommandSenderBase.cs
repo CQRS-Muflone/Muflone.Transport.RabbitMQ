@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using Muflone.Messages.Commands;
-using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
 using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
@@ -15,22 +14,15 @@ public abstract class CommandSenderBase<T> : ConsumerBase, ICommandSender<T>, IA
 	private readonly IMufloneConnectionFactory _connectionFactory;
 	private IModel _channel;
 
-	/// <summary>
-	/// For now just as a proxy to pass directly to the Handler this class is wrapping
-	/// </summary>
-	protected IRepository Repository { get; }
-
-	protected CommandSenderBase(IRepository repository, IMufloneConnectionFactory connectionFactory,
+	protected CommandSenderBase(IMufloneConnectionFactory connectionFactory,
 		ILoggerFactory loggerFactory)
-		: this(new ConsumerConfiguration(), repository, connectionFactory, loggerFactory)
+		: this(new ConsumerConfiguration(), connectionFactory, loggerFactory)
 	{
 	}
 
-	protected CommandSenderBase(ConsumerConfiguration configuration, IRepository repository,
-		IMufloneConnectionFactory connectionFactory, ILoggerFactory loggerFactory)
-		: base(loggerFactory)
+	protected CommandSenderBase(ConsumerConfiguration configuration, IMufloneConnectionFactory connectionFactory,
+		ILoggerFactory loggerFactory) : base(loggerFactory)
 	{
-		Repository = repository ?? throw new ArgumentNullException(nameof(repository));
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
