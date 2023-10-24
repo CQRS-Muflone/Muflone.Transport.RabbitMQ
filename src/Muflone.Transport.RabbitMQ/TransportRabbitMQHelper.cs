@@ -11,10 +11,18 @@ public static class TransportRabbitMQHelper
 {
 	public static IServiceCollection AddMufloneTransportRabbitMQ(this IServiceCollection services,
 		ILoggerFactory loggerFactory,
-		RabbitMQConfiguration rabbitMQConfiguration)
+		RabbitMQConfiguration rabbitMqConfiguration)
 	{
-		services.AddSingleton(new MufloneConnectionFactory(rabbitMQConfiguration, loggerFactory));
-		services.AddSingleton(rabbitMQConfiguration);
+		var serviceProvider = services.BuildServiceProvider();
+		
+		var serviceBus = serviceProvider.GetService<IServiceBus>();
+		if (serviceBus != null)
+			return services;
+
+		services.AddSingleton(Enumerable.Empty<IConsumer>());
+		
+		services.AddSingleton(new MufloneConnectionFactory(rabbitMqConfiguration, loggerFactory));
+		services.AddSingleton(rabbitMqConfiguration);
 		services.AddSingleton<IMufloneConnectionFactory, MufloneConnectionFactory>();
 		services.AddSingleton<IServiceBus, ServiceBus>();
 		services.AddSingleton<IEventBus, ServiceBus>();
