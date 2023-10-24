@@ -3,10 +3,10 @@ using Muflone.Messages;
 using Muflone.Messages.Commands;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
+using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
-using Muflone.Transport.RabbitMQ.Models;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
@@ -23,7 +23,6 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	/// For now just as a proxy to pass directly to the Handler this class is wrapping
 	/// </summary>
 	protected IRepository Repository { get; }
-
 
 	protected CommandConsumerBase(IRepository repository, IMufloneConnectionFactory connectionFactory,
 		ILoggerFactory loggerFactory)
