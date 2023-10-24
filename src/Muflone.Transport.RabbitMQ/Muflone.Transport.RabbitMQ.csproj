@@ -16,6 +16,7 @@
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Version>6.2.2</Version>
+    <PackageVersion>6.2.3</PackageVersion>
   </PropertyGroup>
 
   <ItemGroup>
