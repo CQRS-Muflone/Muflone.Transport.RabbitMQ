@@ -13,6 +13,7 @@ public class MufloneConnectionFactory : IMufloneConnectionFactory
 	protected bool IsConnected => Connection is { IsOpen: true };
 	public string ExchangeCommandsName { get; }
 	public string ExchangeEventsName { get; }
+	public string ClientId { get; }
 
 	private readonly RabbitMQConfiguration _rabbitMQConfiguration;
 	private readonly ILogger _logger;
@@ -23,6 +24,8 @@ public class MufloneConnectionFactory : IMufloneConnectionFactory
 		_rabbitMQConfiguration = rabbitMQConfiguration ?? throw new ArgumentNullException(nameof(rabbitMQConfiguration));
 		ExchangeCommandsName = rabbitMQConfiguration.ExchangeCommandsName;
 		ExchangeEventsName = rabbitMQConfiguration.ExchangeEventsName;
+		ClientId = rabbitMQConfiguration.ClientId;
+		
 		TryCreateConnection();
 	}
 

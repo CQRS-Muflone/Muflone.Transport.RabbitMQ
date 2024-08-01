@@ -8,4 +8,5 @@ public interface IMufloneConnectionFactory
 	IModel CreateChannel();
 	string ExchangeCommandsName { get; }
 	string ExchangeEventsName { get; }
+	string ClientId { get; }
 }

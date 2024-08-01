@@ -36,10 +36,10 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 			configuration.ResourceKey = typeof(T).Name;
 		if (string.IsNullOrWhiteSpace(configuration.QueueName))
 		{
-			configuration.QueueName = GetType().Name;
+			configuration.QueueName = $"{_connectionFactory.ClientId}.{GetType().Name}";
 			if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
 				configuration.QueueName =
-					configuration.QueueName.Substring(0, configuration.QueueName.Length - "Consumer".Length);
+					configuration.QueueName[..^"Consumer".Length];
 		}
 
 		_configuration = configuration;

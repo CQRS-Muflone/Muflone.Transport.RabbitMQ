@@ -10,7 +10,7 @@ public class SendCommandTest
 	public async Task Can_Send_Command()
 	{
 		var rabbitMQConfiguration =
-			new RabbitMQConfiguration("localhost", "myuser", "mypassword", "MufloneCommands", "MufloneEvents");
+			new RabbitMQConfiguration("localhost", "myuser", "mypassword", "MufloneCommands", "MufloneEvents", "Test");
 		var mufloneConnectionFactory = new MufloneConnectionFactory(rabbitMQConfiguration, new NullLoggerFactory());
 
 		var serviceBus = new ServiceBus(mufloneConnectionFactory, new NullLoggerFactory());

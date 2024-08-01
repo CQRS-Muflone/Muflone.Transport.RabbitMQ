@@ -9,22 +9,23 @@ public class RabbitMQConfiguration
 	public readonly TimeSpan RetryDelay;
 	public readonly string ExchangeCommandsName;
 	public readonly string ExchangeEventsName;
+	public readonly string ClientId;
 
 
 	public RabbitMQConfiguration(string hostName, string userName, string password, string exchangeCommandsName,
-		string exchangeEventsName)
-		: this(hostName, userName, password, TimeSpan.FromSeconds(30), exchangeCommandsName, exchangeEventsName)
+		string exchangeEventsName, string clientId)
+		: this(hostName, userName, password, TimeSpan.FromSeconds(30), exchangeCommandsName, exchangeEventsName, clientId)
 	{
 	}
 
 	public RabbitMQConfiguration(string hostName, string userName, string password, TimeSpan retryDelay,
-		string exchangeCommandsName, string exchangeEventsName)
-		: this(hostName, string.Empty, userName, password, retryDelay, exchangeCommandsName, exchangeEventsName)
+		string exchangeCommandsName, string exchangeEventsName, string clientId)
+		: this(hostName, string.Empty, userName, password, retryDelay, exchangeCommandsName, exchangeEventsName, clientId)
 	{
 	}
 
 	public RabbitMQConfiguration(string hostName, string vhost, string userName, string password, TimeSpan retryDelay,
-		string exchangeCommandsName, string exchangeEventsName)
+		string exchangeCommandsName, string exchangeEventsName, string clientId)
 	{
 		HostName = hostName;
 		UserName = userName;
@@ -33,6 +34,8 @@ public class RabbitMQConfiguration
 		RetryDelay = retryDelay;
 		ExchangeCommandsName = exchangeCommandsName;
 		ExchangeEventsName = exchangeEventsName;
+
+		ClientId = clientId;
 
 		VirtualHost = string.IsNullOrWhiteSpace(vhost) ? "/" : vhost;
 	}
