@@ -89,7 +89,7 @@ public class ServiceBus : IServiceBus, IEventBus
 			channel.ExchangeDeclare(_connectionFactory.ExchangeEventsName, ExchangeType.Topic);
 			channel.BasicPublish(
 				_connectionFactory.ExchangeEventsName,
-				@event.GetType().Name,
+				$"{_connectionFactory.ClientId}.{@event.GetType().Name}",
 				true,
 				properties,
 				Encoding.UTF8.GetBytes(serializedMessage));
