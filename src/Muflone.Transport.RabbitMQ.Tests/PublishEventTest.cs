@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Muflone.Transport.RabbitMQ.Abstracts;
+using Muflone.Transport.RabbitMQ.Consumers;
 using Muflone.Transport.RabbitMQ.Factories;
 using Muflone.Transport.RabbitMQ.Models;
 
@@ -12,6 +14,12 @@ public class PublishEventTest
 		var rabbitMQConfiguration =
 			new RabbitMQConfiguration("localhost", "guest", "guest", "Muflone.Commands", "Muflone.Events", "Test");
 		var mufloneConnectionFactory = new MufloneConnectionFactory(rabbitMQConfiguration, new NullLoggerFactory());
+
+		var consumers = new List<IConsumer>
+		{
+			new OrderCreatedConsumer(mufloneConnectionFactory, new NullLoggerFactory())
+		};
+		
 
 		var serviceBus = new ServiceBus(mufloneConnectionFactory, new NullLoggerFactory());
 		var orderCreated = new OrderCreated(new OrderId(Guid.NewGuid()), "20240801-01");

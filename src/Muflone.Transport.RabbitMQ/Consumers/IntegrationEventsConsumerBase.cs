@@ -82,7 +82,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 	private void StopChannel()
 	{
-		if (_channel.Equals(default!))
+		if (_channel == null)
 			return;
 		
 		_channel.CallbackException -= OnChannelException!;

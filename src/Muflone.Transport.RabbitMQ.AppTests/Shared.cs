@@ -1,13 +1,11 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Muflone.Core;
 using Muflone.Messages.Commands;
 using Muflone.Messages.Events;
 using Muflone.Transport.RabbitMQ.Abstracts;
 using Muflone.Transport.RabbitMQ.Consumers;
-using Muflone.Transport.RabbitMQ.Models;
 
-namespace Muflone.Transport.RabbitMQ.Tests;
+namespace Muflone.Transport.RabbitMQ.AppTests;
 
 public class OrderId : DomainId
 {
@@ -40,13 +38,13 @@ public class OrderCreated : DomainEvent
 	}
 }
 
-public class OrderCreatedConsumer : DomainEventsConsumerBase<OrderCreated>
+public class OrderCreatedConsumer(
+	IMufloneConnectionFactory mufloneConnectionFactory,
+	ILoggerFactory loggerFactory)
+	: DomainEventsConsumerBase<OrderCreated>(mufloneConnectionFactory, loggerFactory)
 {
-	public OrderCreatedConsumer(IMufloneConnectionFactory mufloneConnectionFactory,
-		ILoggerFactory loggerFactory) : base(mufloneConnectionFactory, loggerFactory)
+	protected override IEnumerable<IDomainEventHandlerAsync<OrderCreated>> HandlersAsync { get; } = new List<IDomainEventHandlerAsync<OrderCreated>>
 	{
-		HandlersAsync = [];
-	}
-
-	protected override IEnumerable<IDomainEventHandlerAsync<OrderCreated>> HandlersAsync { get; }
+		new OrderCreatedEventHandler(loggerFactory)
+	};
 }

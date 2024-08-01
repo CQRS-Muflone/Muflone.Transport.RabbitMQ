@@ -99,7 +99,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 
 	private void StopChannel()
 	{
-		if (_channel.Equals(default!))
+		if (_channel == null)
 			return;
 		
 		_channel.CallbackException -= OnChannelException!;

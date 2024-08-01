@@ -79,7 +79,7 @@ public abstract class CommandSenderBase<T> : ConsumerBase, ICommandSender<T>, IA
 
 	private void StopChannel()
 	{
-		if (_channel.Equals(default!))
+		if (_channel == null)
 			return;
 
 		_channel.CallbackException -= OnChannelException!;
