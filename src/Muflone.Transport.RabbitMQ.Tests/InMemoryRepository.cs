@@ -32,4 +32,25 @@ public class InMemoryRepository : IRepository, IDisposable
 	{
 		throw new NotImplementedException();
 	}
+
+	public Task<TAggregate> GetByIdAsync<TAggregate>(Guid id, CancellationToken cancellationToken = new CancellationToken()) where TAggregate : class, IAggregate
+	{
+		throw new NotImplementedException();
+	}
+
+	public Task<TAggregate> GetByIdAsync<TAggregate>(Guid id, long version, CancellationToken cancellationToken = new CancellationToken()) where TAggregate : class, IAggregate
+	{
+		throw new NotImplementedException();
+	}
+
+	public Task SaveAsync(IAggregate aggregate, Guid commitId, Action<IDictionary<string, object>> updateHeaders,
+		CancellationToken cancellationToken = new CancellationToken())
+	{
+		throw new NotImplementedException();
+	}
+
+	public Task SaveAsync(IAggregate aggregate, Guid commitId, CancellationToken cancellationToken = new CancellationToken())
+	{
+		throw new NotImplementedException();
+	}
 }

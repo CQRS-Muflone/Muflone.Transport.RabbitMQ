@@ -39,6 +39,8 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 		_messageSerializer = new Serializer();
 
+		_channel = default!;
+
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
 			configuration.ResourceKey = typeof(T).Name;
 
@@ -92,15 +94,12 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 			_configuration.ResourceKey,
 			null);
 
-		_channel.CallbackException += OnChannelException;
+		_channel.CallbackException += OnChannelException!;
 	}
 
 	private void StopChannel()
 	{
-		if (_channel is null)
-			return;
-
-		_channel.CallbackException -= OnChannelException;
+		_channel.CallbackException -= OnChannelException!;
 
 		if (_channel.IsOpen)
 			_channel.Close();

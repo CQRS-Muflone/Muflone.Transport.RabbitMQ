@@ -32,6 +32,8 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 		_messageSerializer = new Serializer();
 
+		_channel = default!;
+
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
 			configuration.ResourceKey = typeof(T).Name;
 		if (string.IsNullOrWhiteSpace(configuration.QueueName))
@@ -75,15 +77,12 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		_channel.QueueDeclare(_configuration.QueueName, true, false, false);
 		_channel.QueueBind(_configuration.QueueName, _connectionFactory.ExchangeEventsName, _configuration.ResourceKey,
 			null);
-		_channel.CallbackException += OnChannelException;
+		_channel.CallbackException += OnChannelException!;
 	}
 
 	private void StopChannel()
 	{
-		if (_channel is null)
-			return;
-
-		_channel.CallbackException -= OnChannelException;
+		_channel.CallbackException -= OnChannelException!;
 
 		if (_channel.IsOpen)
 			_channel.Close();
