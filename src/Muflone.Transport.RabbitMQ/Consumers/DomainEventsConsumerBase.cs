@@ -82,6 +82,9 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 
 	private void StopChannel()
 	{
+		if (_channel.Equals(default!))
+			return;
+		
 		_channel.CallbackException -= OnChannelException!;
 
 		if (_channel.IsOpen)
