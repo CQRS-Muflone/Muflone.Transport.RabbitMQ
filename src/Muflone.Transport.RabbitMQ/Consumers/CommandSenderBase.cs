@@ -25,6 +25,8 @@ public abstract class CommandSenderBase<T> : ConsumerBase, ICommandSender<T>, IA
 	{
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 
+		_channel = default!;
+
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
 			configuration.ResourceKey = typeof(T).Name;
 
@@ -72,7 +74,7 @@ public abstract class CommandSenderBase<T> : ConsumerBase, ICommandSender<T>, IA
 			_configuration.ResourceKey,
 			null);
 
-		_channel.CallbackException += OnChannelException;
+		_channel.CallbackException += OnChannelException!;
 	}
 
 	private void StopChannel()
@@ -80,7 +82,7 @@ public abstract class CommandSenderBase<T> : ConsumerBase, ICommandSender<T>, IA
 		if (_channel is null)
 			return;
 
-		_channel.CallbackException -= OnChannelException;
+		_channel.CallbackException -= OnChannelException!;
 
 		if (_channel.IsOpen)
 			_channel.Close();

@@ -2,6 +2,6 @@
 
 public class ConsumerConfiguration
 {
-	public string QueueName { get; set; }
-	public string ResourceKey { get; set; }
+	public string QueueName { get; set; } = string.Empty;
+	public string ResourceKey { get; set; } = string.Empty;
 }
