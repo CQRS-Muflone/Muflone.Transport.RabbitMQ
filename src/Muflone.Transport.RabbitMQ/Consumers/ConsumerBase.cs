@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace Muflone.Transport.RabbitMQ.Abstracts;
+namespace Muflone.Transport.RabbitMQ.Consumers;
 
 public abstract class ConsumerBase
 {

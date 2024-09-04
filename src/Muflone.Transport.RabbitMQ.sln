@@ -7,9 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Muflone.Transport.RabbitMQ"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A30778A7-53EA-4EEE-9F73-F28D52960378}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Muflone.Transport.RabbitMQ.Tests", "Muflone.Transport.RabbitMQ.Tests\Muflone.Transport.RabbitMQ.Tests.csproj", "{7BC39D88-D7ED-4991-BCB5-9D435501244A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Muflone.Transport.RabbitMQ.Tests", "Muflone.Transport.RabbitMQ.Tests\Muflone.Transport.RabbitMQ.Tests.csproj", "{7BC39D88-D7ED-4991-BCB5-9D435501244A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Muflone.Transport.RabbitMQ.AppTests", "Muflone.Transport.RabbitMQ.AppTests\Muflone.Transport.RabbitMQ.AppTests.csproj", "{B92F2307-AC08-4008-ABDA-C7A96FD507A3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Muflone.Transport.RabbitMQ.AppTests", "Muflone.Transport.RabbitMQ.AppTests\Muflone.Transport.RabbitMQ.AppTests.csproj", "{B92F2307-AC08-4008-ABDA-C7A96FD507A3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using Muflone.Persistence;
+using System.Collections.Concurrent;
 
 namespace Muflone.Transport.RabbitMQ.Tests;
 

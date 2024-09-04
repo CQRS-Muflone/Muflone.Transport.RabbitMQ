@@ -3,10 +3,10 @@ using Muflone.Messages;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
+using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
-using Muflone.Transport.RabbitMQ.Models;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
@@ -15,18 +15,18 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 {
 	private readonly ISerializer _messageSerializer;
 	private readonly ConsumerConfiguration _configuration;
-	private readonly IMufloneConnectionFactory _connectionFactory;
+	private readonly IRabbitMQConnectionFactory _connectionFactory;
 	private IModel _channel;
 	protected abstract IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync { get; }
 
-	protected DomainEventsConsumerBase(IMufloneConnectionFactory connectionFactory,
+	protected DomainEventsConsumerBase(IRabbitMQConnectionFactory connectionFactory,
 		ILoggerFactory loggerFactory)
 		: this(new ConsumerConfiguration(), connectionFactory, loggerFactory)
 	{
 	}
 
 	protected DomainEventsConsumerBase(ConsumerConfiguration configuration,
-		IMufloneConnectionFactory connectionFactory, ILoggerFactory loggerFactory)
+		IRabbitMQConnectionFactory connectionFactory, ILoggerFactory loggerFactory)
 		: base(loggerFactory)
 	{
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -84,14 +84,14 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 	{
 		if (_channel == null)
 			return;
-		
+
 		_channel.CallbackException -= OnChannelException!;
 
 		if (_channel.IsOpen)
 			_channel.Close();
 
 		_channel.Dispose();
-		_channel = null;
+		//_channel = null;
 	}
 
 	private void OnChannelException(object _, CallbackExceptionEventArgs ea)
@@ -118,11 +118,10 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		var consumer = sender as IBasicConsumer;
 		var channel = consumer?.Model ?? _channel;
 
-		DomainEvent message;
+		DomainEvent? message;
 		try
 		{
-			message = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
-				CancellationToken.None);
+			message = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()), CancellationToken.None);
 		}
 		catch (Exception ex)
 		{
@@ -133,19 +132,21 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 			return;
 		}
 
-		Logger.LogInformation(
-			$"Received message '{message.MessageId}' from Exchange '{_connectionFactory.ExchangeEventsName}', Queue '{_configuration.QueueName}'. Processing...");
-
-		try
+		if (message != null)
 		{
-			//TODO: provide valid cancellation token
-			await ConsumeAsync((dynamic)message, CancellationToken.None);
+			Logger.LogInformation($"Received message '{message.MessageId}' from Exchange '{_connectionFactory.ExchangeEventsName}', Queue '{_configuration.QueueName}'. Processing...");
 
-			channel.BasicAck(eventArgs.DeliveryTag, false);
-		}
-		catch (Exception ex)
-		{
-			HandleConsumerException(ex, eventArgs, channel, message, false);
+			try
+			{
+				//TODO: provide valid cancellation token
+				await ConsumeAsync((dynamic)message, CancellationToken.None);
+
+				channel.BasicAck(eventArgs.DeliveryTag, false);
+			}
+			catch (Exception ex)
+			{
+				HandleConsumerException(ex, eventArgs, channel, message, false);
+			}
 		}
 	}
 
