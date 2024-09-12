@@ -11,16 +11,16 @@ public abstract class CommandSenderBase<T> : ConsumerBase, ICommandSender<T>, IA
 	where T : Command
 {
 	private readonly ConsumerConfiguration _configuration;
-	private readonly IMufloneConnectionFactory _connectionFactory;
+	private readonly IRabbitMQConnectionFactory _connectionFactory;
 	private IModel _channel;
 
-	protected CommandSenderBase(IMufloneConnectionFactory connectionFactory,
+	protected CommandSenderBase(IRabbitMQConnectionFactory connectionFactory,
 		ILoggerFactory loggerFactory)
 		: this(new ConsumerConfiguration(), connectionFactory, loggerFactory)
 	{
 	}
 
-	protected CommandSenderBase(ConsumerConfiguration configuration, IMufloneConnectionFactory connectionFactory,
+	protected CommandSenderBase(ConsumerConfiguration configuration, IRabbitMQConnectionFactory connectionFactory,
 		ILoggerFactory loggerFactory) : base(loggerFactory)
 	{
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -88,7 +88,7 @@ public abstract class CommandSenderBase<T> : ConsumerBase, ICommandSender<T>, IA
 			_channel.Close();
 
 		_channel.Dispose();
-		_channel = null;
+		//_channel = null;
 	}
 
 	private void OnChannelException(object _, CallbackExceptionEventArgs ea)
