@@ -3,10 +3,10 @@ using Muflone.Messages;
 using Muflone.Messages.Commands;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
+using Muflone.Transport.RabbitMQ.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
-using Muflone.Transport.RabbitMQ.Models;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
 
@@ -15,7 +15,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 {
 	private readonly ISerializer _messageSerializer;
 	private readonly ConsumerConfiguration _configuration;
-	private readonly IMufloneConnectionFactory _connectionFactory;
+	private readonly IRabbitMQConnectionFactory _connectionFactory;
 	private IModel _channel;
 	protected abstract ICommandHandlerAsync<T> HandlerAsync { get; }
 
@@ -25,14 +25,14 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	protected IRepository Repository { get; }
 
 
-	protected CommandConsumerBase(IRepository repository, IMufloneConnectionFactory connectionFactory,
+	protected CommandConsumerBase(IRepository repository, IRabbitMQConnectionFactory connectionFactory,
 		ILoggerFactory loggerFactory)
 		: this(new ConsumerConfiguration(), repository, connectionFactory, loggerFactory)
 	{
 	}
 
 	protected CommandConsumerBase(ConsumerConfiguration configuration, IRepository repository,
-		IMufloneConnectionFactory connectionFactory, ILoggerFactory loggerFactory)
+		IRabbitMQConnectionFactory connectionFactory, ILoggerFactory loggerFactory)
 		: base(loggerFactory)
 	{
 		Repository = repository ?? throw new ArgumentNullException(nameof(repository));
@@ -101,14 +101,14 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	{
 		if (_channel == null)
 			return;
-		
+
 		_channel.CallbackException -= OnChannelException!;
 
 		if (_channel.IsOpen)
 			_channel.Close();
 
 		_channel.Dispose();
-		_channel = null;
+		//_channel = null;
 	}
 
 	private void OnChannelException(object _, CallbackExceptionEventArgs ea)
@@ -132,42 +132,39 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		var consumer = sender as IBasicConsumer;
 		var channel = consumer?.Model ?? _channel;
 
-		Command command;
+		Command? command;
 		try
 		{
-			command = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()),
-				CancellationToken.None);
+			command = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()), CancellationToken.None);
 		}
 		catch (Exception ex)
 		{
-			Logger.LogError(ex,
-				"an exception has occured while decoding queue message from Exchange '{ExchangeName}', message cannot be parsed. Error: {ExceptionMessage}",
-				eventArgs.Exchange, ex.Message);
+			Logger.LogError(ex, "An exception has occured while decoding queue message from Exchange '{ExchangeName}', message cannot be parsed. Error: {ExceptionMessage}", eventArgs.Exchange, ex.Message);
 			channel.BasicReject(eventArgs.DeliveryTag, false);
 			return;
 		}
 
-		Logger.LogInformation(
-			$"Received message '{command.MessageId}' from Exchange '{_connectionFactory.ExchangeCommandsName}', Queue '{_configuration.QueueName}'. Processing...");
-
-		try
+		if (command != null)
 		{
-			//TODO: provide valid cancellation token
-			await ConsumeAsync((dynamic)command, CancellationToken.None);
+			Logger.LogInformation($"Received message '{command.MessageId}' from Exchange '{_connectionFactory.ExchangeCommandsName}', Queue '{_configuration.QueueName}'. Processing...");
+			try
+			{
+				//TODO: provide valid cancellation token
+				await ConsumeAsync((dynamic)command, CancellationToken.None);
 
-			channel.BasicAck(eventArgs.DeliveryTag, false);
-		}
-		catch (Exception ex)
-		{
-			HandleConsumerException(ex, eventArgs, channel, command, false);
+				channel.BasicAck(eventArgs.DeliveryTag, false);
+			}
+			catch (Exception ex)
+			{
+				HandleConsumerException(ex, eventArgs, channel, command, false);
+			}
 		}
 	}
 
 	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel,
 		IMessage message, bool requeue)
 	{
-		var errorMsg =
-			$"An error has occurred while processing Message '{message.MessageId}' from Exchange '{deliveryProps.Exchange}' : {ex.Message} . {(requeue ? "Reenqueuing..." : "Nacking...")}";
+		var errorMsg = $"An error has occurred while processing Message '{message.MessageId}' from Exchange '{deliveryProps.Exchange}' : {ex.Message} . {(requeue ? "Reenqueuing..." : "Nacking...")}";
 		Logger.LogWarning(ex, errorMsg);
 
 		if (!requeue)
@@ -177,8 +174,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		else
 		{
 			channel.BasicAck(deliveryProps.DeliveryTag, false);
-			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties,
-				deliveryProps.Body);
+			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties, deliveryProps.Body);
 		}
 	}
 

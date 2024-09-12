@@ -11,11 +11,11 @@ namespace Muflone.Transport.RabbitMQ;
 
 public class ServiceBus : IServiceBus, IEventBus
 {
-	private readonly IMufloneConnectionFactory _connectionFactory;
+	private readonly IRabbitMQConnectionFactory _connectionFactory;
 	private readonly ISerializer _messageSerializer;
 	private readonly ILogger _logger;
 
-	public ServiceBus(IMufloneConnectionFactory mufloneConnectionFactory, ILoggerFactory loggerFactory,
+	public ServiceBus(IRabbitMQConnectionFactory mufloneConnectionFactory, ILoggerFactory loggerFactory,
 		ISerializer? messageSerializer = null)
 	{
 		_connectionFactory = mufloneConnectionFactory ?? throw new ArgumentNullException(nameof(mufloneConnectionFactory));

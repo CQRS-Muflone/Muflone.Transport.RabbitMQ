@@ -6,7 +6,7 @@ using RabbitMQ.Client;
 
 namespace Muflone.Transport.RabbitMQ.Factories;
 
-public class MufloneConnectionFactory : IMufloneConnectionFactory
+public class RabbitMQConnectionFactory : IRabbitMQConnectionFactory
 {
 	public IConnection Connection { get; private set; } = default!;
 
@@ -18,14 +18,14 @@ public class MufloneConnectionFactory : IMufloneConnectionFactory
 	private readonly RabbitMQConfiguration _rabbitMQConfiguration;
 	private readonly ILogger _logger;
 
-	public MufloneConnectionFactory(RabbitMQConfiguration rabbitMQConfiguration, ILoggerFactory loggerFactory)
+	public RabbitMQConnectionFactory(RabbitMQConfiguration rabbitMQConfiguration, ILoggerFactory loggerFactory)
 	{
 		_logger = loggerFactory.CreateLogger(GetType()) ?? throw new ArgumentNullException(nameof(loggerFactory));
 		_rabbitMQConfiguration = rabbitMQConfiguration ?? throw new ArgumentNullException(nameof(rabbitMQConfiguration));
 		ExchangeCommandsName = rabbitMQConfiguration.ExchangeCommandsName;
 		ExchangeEventsName = rabbitMQConfiguration.ExchangeEventsName;
 		ClientId = rabbitMQConfiguration.ClientId;
-		
+
 		TryCreateConnection();
 	}
 

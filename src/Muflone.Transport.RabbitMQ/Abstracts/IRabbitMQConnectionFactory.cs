@@ -2,7 +2,7 @@
 
 namespace Muflone.Transport.RabbitMQ.Abstracts;
 
-public interface IMufloneConnectionFactory
+public interface IRabbitMQConnectionFactory : ITransporterConnectionFactory
 {
 	IConnection Connection { get; }
 	IModel CreateChannel();

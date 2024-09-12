@@ -9,7 +9,7 @@ namespace Muflone.Transport.RabbitMQ.AppTests;
 
 public class OrderId : DomainId
 {
-	public OrderId(Guid value) : base(value)
+	public OrderId(Guid value) : base(value.ToString())
 	{
 	}
 }
@@ -39,7 +39,7 @@ public class OrderCreated : DomainEvent
 }
 
 public class OrderCreatedConsumer(
-	IMufloneConnectionFactory mufloneConnectionFactory,
+	IRabbitMQConnectionFactory mufloneConnectionFactory,
 	ILoggerFactory loggerFactory)
 	: DomainEventsConsumerBase<OrderCreated>(mufloneConnectionFactory, loggerFactory)
 {

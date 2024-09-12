@@ -13,9 +13,9 @@ public static class TransportRabbitMQHelper
 		ILoggerFactory loggerFactory,
 		RabbitMQConfiguration rabbitMQConfiguration)
 	{
-		services.AddSingleton(new MufloneConnectionFactory(rabbitMQConfiguration, loggerFactory));
+		services.AddSingleton(new RabbitMQConnectionFactory(rabbitMQConfiguration, loggerFactory));
 		services.AddSingleton(rabbitMQConfiguration);
-		services.AddSingleton<IMufloneConnectionFactory, MufloneConnectionFactory>();
+		services.AddSingleton<IRabbitMQConnectionFactory, RabbitMQConnectionFactory>();
 		services.AddSingleton<IServiceBus, ServiceBus>();
 		services.AddSingleton<IEventBus, ServiceBus>();
 		services.AddHostedService<RabbitMqStarter>();

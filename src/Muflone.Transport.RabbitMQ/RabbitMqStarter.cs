@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Hosting;
-using Muflone.Transport.RabbitMQ.Abstracts;
 
 namespace Muflone.Transport.RabbitMQ;
 
