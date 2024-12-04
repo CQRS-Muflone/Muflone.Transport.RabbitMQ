@@ -121,7 +121,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		DomainEvent? message;
 		try
 		{
-			message = await _messageSerializer.DeserializeAsync<T>(Encoding.ASCII.GetString(eventArgs.Body.ToArray()), CancellationToken.None);
+			message = await _messageSerializer.DeserializeAsync<T>(Encoding.UTF8.GetString(eventArgs.Body.ToArray()), CancellationToken.None);
 		}
 		catch (Exception ex)
 		{
