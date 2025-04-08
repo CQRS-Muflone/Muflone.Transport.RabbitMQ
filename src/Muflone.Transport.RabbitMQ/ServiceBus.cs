@@ -37,7 +37,7 @@ public class ServiceBus : IServiceBus, IEventBus
 					$"{time.TotalSeconds:n1}", ex.Message);
 			});
 
-		var channel = _connectionFactory.CreateChannel();
+		using var channel = _connectionFactory.CreateChannel();
 		var properties = channel.CreateBasicProperties();
 		properties.Persistent = true;
 		properties.Headers = new Dictionary<string, object>()
@@ -76,7 +76,7 @@ public class ServiceBus : IServiceBus, IEventBus
 					$"{time.TotalSeconds:n1}", ex.Message);
 			});
 
-		var channel = _connectionFactory.CreateChannel();
+		using var channel = _connectionFactory.CreateChannel();
 		var properties = channel.CreateBasicProperties();
 		properties.Persistent = true;
 		properties.Headers = new Dictionary<string, object>()
