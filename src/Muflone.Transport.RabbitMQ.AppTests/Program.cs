@@ -17,6 +17,7 @@ var rabbitMqConfiguration = new RabbitMQConfiguration("localhost", "guest",
 var mufloneConnectionFactory = new RabbitMQConnectionFactory(rabbitMqConfiguration, new NullLoggerFactory());
 
 builder.Services.AddMufloneTransportRabbitMQ(new NullLoggerFactory(), rabbitMqConfiguration);
+builder.Services.AddHostedService<RunTest>();
 
 var consumers = new List<IConsumer>
 {
@@ -24,18 +25,6 @@ var consumers = new List<IConsumer>
 };
 builder.Services.AddMufloneRabbitMQConsumers(consumers);
 
-
 using IHost host = builder.Build();
 
-await PublishEvent(host.Services);
-
 await host.RunAsync();
-
-
-static async Task PublishEvent(IServiceProvider serviceProvider)
-{
-	var eventBus = serviceProvider.GetRequiredService<IEventBus>();
-	var orderCreated = new OrderCreated(new OrderId(Guid.NewGuid()), "20240801-01");
-
-	await eventBus.PublishAsync(orderCreated, CancellationToken.None);
-}

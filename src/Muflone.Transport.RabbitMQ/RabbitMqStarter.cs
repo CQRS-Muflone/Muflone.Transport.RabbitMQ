@@ -2,18 +2,11 @@
 
 namespace Muflone.Transport.RabbitMQ;
 
-public class RabbitMqStarter : IHostedService
+public class RabbitMqStarter(IEnumerable<IConsumer> consumers) : IHostedService
 {
-	private readonly IEnumerable<IConsumer> _consumers;
-
-	public RabbitMqStarter(IEnumerable<IConsumer> consumers)
-	{
-		_consumers = consumers;
-	}
-
 	public Task StartAsync(CancellationToken cancellationToken)
 	{
-		foreach (var consumer in _consumers) consumer.StartAsync(cancellationToken);
+		foreach (var consumer in consumers) consumer.StartAsync(cancellationToken);
 		return Task.CompletedTask;
 	}
 

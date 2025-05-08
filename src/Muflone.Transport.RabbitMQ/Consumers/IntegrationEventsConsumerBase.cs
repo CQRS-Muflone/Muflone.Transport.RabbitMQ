@@ -16,7 +16,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 	private readonly ISerializer _messageSerializer;
 	private readonly ConsumerConfiguration _configuration;
 	private readonly IRabbitMQConnectionFactory _connectionFactory;
-	private IModel _channel;
+	private IChannel _channel;
 	protected abstract IEnumerable<IIntegrationEventHandlerAsync<T>> HandlersAsync { get; }
 
 	protected IntegrationEventsConsumerBase(IRabbitMQConnectionFactory mufloneConnectionFactory,
@@ -31,19 +31,9 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 	{
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 		_messageSerializer = new Serializer();
+		_channel = null!;
 
-		_channel = default!;
-
-		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
-			configuration.ResourceKey = typeof(T).Name;
-		if (string.IsNullOrWhiteSpace(configuration.QueueName))
-		{
-			configuration.QueueName = $"{_connectionFactory.ClientId}.{GetType().Name}";
-			if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
-				configuration.QueueName =
-					configuration.QueueName.Substring(0, configuration.QueueName.Length - "Consumer".Length);
-		}
-
+		GetQueueName(configuration);
 		_configuration = configuration;
 	}
 
@@ -53,72 +43,67 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 			await handlerAsync.HandleAsync(message, cancellationToken);
 	}
 
-	public Task StartAsync(CancellationToken cancellationToken = default)
+	public async Task StartAsync(CancellationToken cancellationToken = default)
 	{
-		InitChannel();
-		InitSubscription();
-
-		return Task.CompletedTask;
+		await InitChannelAsync();
+		await InitSubscriptionAsync();
 	}
 
-	public Task StopAsync(CancellationToken cancellationToken = default)
+	public async Task StopAsync(CancellationToken cancellationToken = default)
 	{
-		StopChannel();
-		return Task.CompletedTask;
+		await StopChannelAsync();
 	}
 
-	private void InitChannel()
+	private async Task InitChannelAsync()
 	{
 		Logger.LogInformation(
 			$"initializing retry queue '{_configuration.QueueName}' on exchange '{_connectionFactory.ExchangeEventsName}'...");
-		StopChannel();
-		_channel = _connectionFactory.CreateChannel();
-		_channel.ExchangeDeclare(_connectionFactory.ExchangeEventsName, ExchangeType.Topic);
-		_channel.QueueDeclare(_configuration.QueueName, true, false, false);
-		_channel.QueueBind(_configuration.QueueName, _connectionFactory.ExchangeEventsName, _configuration.ResourceKey,
-			null);
-		_channel.CallbackException += OnChannelException!;
+		
+		_channel = await _connectionFactory.CreateChannelAsync();
+		await _channel.ExchangeDeclareAsync(_connectionFactory.ExchangeEventsName, ExchangeType.Topic, true);
+		await _channel.QueueDeclareAsync(_configuration.QueueName, false, false, false);
+		await _channel.QueueBindAsync(_configuration.QueueName, _connectionFactory.ExchangeEventsName,
+			_configuration.ResourceKey);
+
+		_channel.CallbackExceptionAsync += async (_, e) =>
+		{
+			Logger.LogWarning($"Channel exception: {e.Exception.Message}");
+			await OnChannelExceptionAsync(e);
+		};
 	}
 
-	private void StopChannel()
+	private async Task StopChannelAsync()
 	{
-		if (_channel == null)
+		if (!_channel.IsOpen)
 			return;
-
-		_channel.CallbackException -= OnChannelException!;
-
-		if (_channel.IsOpen)
-			_channel.Close();
-
+		
+		await _channel.CloseAsync();
 		_channel.Dispose();
-		//_channel = null;
 	}
 
-	private void OnChannelException(object _, CallbackExceptionEventArgs ea)
+	private async Task OnChannelExceptionAsync(CallbackExceptionEventArgs ea)
 	{
 		Logger.LogError(ea.Exception, $"The RabbitMQ Channel has encountered an error: {ea.Exception.Message}");
 
-		InitChannel();
-		InitSubscription();
+		await InitChannelAsync();
+		await InitSubscriptionAsync();
 	}
 
-	private void InitSubscription()
+	private async Task InitSubscriptionAsync()
 	{
 		var consumer = new AsyncEventingBasicConsumer(_channel);
-
-		consumer.Received += OnMessageReceivedAsync;
-
+		consumer.ReceivedAsync += OnMessageReceivedAsync;
+		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
+		
 		Logger.LogInformation(
 			$"Initializing subscription on queue '{_configuration.QueueName}' with ResourceKey '{_configuration.ResourceKey}' ...");
-		_channel.BasicConsume(_configuration.QueueName, false, consumer);
+		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
 	}
 
 	private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)
 	{
-		var consumer = sender as IBasicConsumer;
-		var channel = consumer?.Model ?? _channel;
-
 		IntegrationEvent? message;
+		
 		try
 		{
 			message = await _messageSerializer.DeserializeAsync<T>(Encoding.UTF8.GetString(eventArgs.Body.ToArray()), CancellationToken.None);
@@ -128,13 +113,13 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 			Logger.LogError(ex,
 				"an exception has occured while decoding queue message from Exchange '{ExchangeName}', message cannot be parsed. Error: {ExceptionMessage}",
 				eventArgs.Exchange, ex.Message);
-			channel.BasicReject(eventArgs.DeliveryTag, false);
+			await _channel.BasicRejectAsync(eventArgs.DeliveryTag, false);
+
 			return;
 		}
 
 		if (message != null)
 		{
-
 			Logger.LogInformation($"Received message '{message.MessageId}' from Exchange '{_connectionFactory.ExchangeEventsName}', Queue '{_configuration.QueueName}'. Processing...");
 
 			try
@@ -142,16 +127,16 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 				//TODO: provide valid cancellation token
 				await ConsumeAsync((dynamic)message, CancellationToken.None);
 
-				channel.BasicAck(eventArgs.DeliveryTag, false);
+				await _channel.BasicAckAsync(eventArgs.DeliveryTag, false); 
 			}
 			catch (Exception ex)
 			{
-				HandleConsumerException(ex, eventArgs, channel, message, false);
+				await HandleConsumerExceptionAsync(ex, eventArgs, _channel, message, false);
 			}
 		}
 	}
 
-	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel,
+	private async Task HandleConsumerExceptionAsync(Exception ex, BasicDeliverEventArgs deliveryProps, IChannel channel,
 		IMessage message, bool requeue)
 	{
 		Logger.LogWarning(ex,
@@ -159,14 +144,30 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 		if (!requeue)
 		{
-			channel.BasicReject(deliveryProps.DeliveryTag, false);
+			await channel.BasicRejectAsync(deliveryProps.DeliveryTag, false);
 		}
 		else
 		{
-			channel.BasicAck(deliveryProps.DeliveryTag, false);
-			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties,
-				deliveryProps.Body);
+			await channel.BasicAckAsync(deliveryProps.DeliveryTag, false);
+			// channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties,
+			// 	deliveryProps.Body);
 		}
+	}
+	
+	private void GetQueueName(ConsumerConfiguration configuration)
+	{
+		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
+			configuration.ResourceKey = typeof(T).Name;
+		
+		configuration.QueueName = typeof(T).Name;
+
+		if (!string.IsNullOrWhiteSpace(configuration.QueueName)) 
+			return;
+		
+		configuration.QueueName = GetType().Name;
+		if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
+			configuration.QueueName =
+				configuration.QueueName[..^"Consumer".Length];
 	}
 
 	#region Dispose

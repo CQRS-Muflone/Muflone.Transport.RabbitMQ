@@ -10,16 +10,11 @@ public class SendCommandTest
 	public async Task Can_Send_Command()
 	{
 		var rabbitMQConfiguration =
-			new RabbitMQConfiguration("localhost", "guest", "guest", "MufloneCommands", "MufloneEvents", "Test");
+			new RabbitMQConfiguration("localhost:15672", "guest", "guest", "MufloneCommands", "MufloneEvents", "Test");
 		var mufloneConnectionFactory = new RabbitMQConnectionFactory(rabbitMQConfiguration, new NullLoggerFactory());
 
 		var serviceBus = new ServiceBus(mufloneConnectionFactory, new NullLoggerFactory());
 		var createOrder = new CreateOrder(new OrderId(Guid.NewGuid()), "20221020-01");
 		await serviceBus.SendAsync(createOrder, CancellationToken.None);
 	}
-
-	//[Fact]
-	//public async Task Can_Handle_Command()
-	//{
-	//}
 }
