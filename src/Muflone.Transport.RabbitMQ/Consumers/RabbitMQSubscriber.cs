@@ -82,18 +82,14 @@ public class RabbitMQSubscriber(
     private string GetQueueName(HandlerSubscription<IChannel> handlerSubscription)
     {
         if (handlerSubscription.Configuration?.QueueName is not null)
-        {
             return handlerSubscription.Configuration.QueueName;
-        }
 
         var queueName = $"{connectionFactory.ClientId}.{handlerSubscription.EventTypeName}";
         if (queueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
             queueName = queueName[..^"Consumer".Length];
 
         if (!handlerSubscription.IsSingletonHandler)
-        {
             queueName = $"{queueName}.{handlerSubscription.HandlerSubscriptionId}";
-        }
 
         const int maxQueueNameLength = 255;
         return queueName[..Math.Min(queueName.Length, maxQueueNameLength)];

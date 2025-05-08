@@ -21,18 +21,12 @@ bool withConsumer = false;
 builder.Services.AddMufloneTransportRabbitMQ(new NullLoggerFactory(), rabbitMqConfiguration);
 builder.Services.AddHostedService<RunTest>();
 
+List<IConsumer> consumers = [];
 if (withConsumer)
-{
-	var consumers = new List<IConsumer>
-	{
-		new OrderCreatedConsumer(mufloneConnectionFactory, new NullLoggerFactory())
-	};
-	builder.Services.AddMufloneRabbitMQConsumers(consumers);	
-}
-else
-{
-	builder.Services.AddMessageHandler<OrderCreatedEventHandler>();
-}
+	consumers.Add(new OrderCreatedConsumer(mufloneConnectionFactory, new NullLoggerFactory()));	
+
+builder.Services.AddMufloneRabbitMQConsumers(consumers);
+builder.Services.AddMessageHandler<OrderCreatedEventHandler>();
 
 using IHost host = builder.Build();
 

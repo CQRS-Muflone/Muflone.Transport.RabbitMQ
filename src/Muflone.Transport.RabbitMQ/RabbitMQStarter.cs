@@ -2,7 +2,7 @@
 
 namespace Muflone.Transport.RabbitMQ;
 
-public class RabbitMqStarter(IEnumerable<IConsumer> consumers) : IHostedService
+public class RabbitMQStarter(IEnumerable<IConsumer> consumers) : IHostedService
 {
 	public Task StartAsync(CancellationToken cancellationToken)
 	{
