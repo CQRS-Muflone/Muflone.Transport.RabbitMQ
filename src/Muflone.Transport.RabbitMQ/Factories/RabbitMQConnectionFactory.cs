@@ -46,6 +46,9 @@ public class RabbitMQConnectionFactory : IRabbitMQConnectionFactory
 
     private async Task TryCreateConnectionAsync()
     {
+        if (IsConnected)
+            return;
+        
         var policy = Policy
             .Handle<Exception>()
             .WaitAndRetryAsync(5,
