@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Muflone.Messages;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
+using Muflone.Transport.RabbitMQ.Consumers;
 using Muflone.Transport.RabbitMQ.Factories;
 using Muflone.Transport.RabbitMQ.Models;
 
@@ -18,7 +20,9 @@ public static class TransportRabbitMQHelper
 		services.AddSingleton<IRabbitMQConnectionFactory, RabbitMQConnectionFactory>();
 		services.AddSingleton<IServiceBus, ServiceBus>();
 		services.AddSingleton<IEventBus, ServiceBus>();
-		services.AddHostedService<RabbitMqStarter>();
+		services.AddSingleton<IMessageSubscriber, RabbitMQSubscriber>();
+		services.AddHostedService<RabbitMQStarter>();
+		services.AddHostedService<MessageHandlersStarter>();
 
 		return services;
 	}

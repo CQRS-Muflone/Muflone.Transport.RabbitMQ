@@ -9,10 +9,11 @@
 
     <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
-      <PackageReference Include="Muflone" Version="8.1.3" />
+
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\..\Muflone\src\Muflone\Muflone.csproj" />
       <ProjectReference Include="..\Muflone.Transport.RabbitMQ\Muflone.Transport.RabbitMQ.csproj" />
     </ItemGroup>
 

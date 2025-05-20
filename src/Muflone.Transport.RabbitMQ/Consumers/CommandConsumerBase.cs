@@ -16,14 +16,14 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	private readonly ISerializer _messageSerializer;
 	private readonly ConsumerConfiguration _configuration;
 	private readonly IRabbitMQConnectionFactory _connectionFactory;
-	private IModel _channel;
+	private IChannel _channel;
+	
 	protected abstract ICommandHandlerAsync<T> HandlerAsync { get; }
 
 	/// <summary>
 	/// For now just as a proxy to pass directly to the Handler this class is wrapping
 	/// </summary>
 	protected IRepository Repository { get; }
-
 
 	protected CommandConsumerBase(IRepository repository, IRabbitMQConnectionFactory connectionFactory,
 		ILoggerFactory loggerFactory)
@@ -38,20 +38,9 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		Repository = repository ?? throw new ArgumentNullException(nameof(repository));
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 		_messageSerializer = new Serializer();
+		_channel = null!;
 
-		_channel = default!;
-
-		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
-			configuration.ResourceKey = typeof(T).Name;
-
-		if (string.IsNullOrWhiteSpace(configuration.QueueName))
-		{
-			configuration.QueueName = GetType().Name;
-			if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
-				configuration.QueueName =
-					configuration.QueueName.Substring(0, configuration.QueueName.Length - "Consumer".Length);
-		}
-
+		GetQueueName(configuration);
 		_configuration = configuration;
 	}
 
@@ -60,79 +49,65 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		await HandlerAsync.HandleAsync(message, cancellationToken);
 	}
 
-	public Task StartAsync(CancellationToken cancellationToken = default)
+	public async Task StartAsync(CancellationToken cancellationToken = default)
 	{
-		InitChannel();
-		InitSubscription();
-
-		return Task.CompletedTask;
+		await InitChannelAsync();
+		await InitSubscriptionAsync();
 	}
 
-	public Task StopAsync(CancellationToken cancellationToken = default)
+	public async Task StopAsync(CancellationToken cancellationToken = default)
 	{
-		StopChannel();
-
-		return Task.CompletedTask;
+		await StopChannelAsync();
 	}
 
-	private void InitChannel()
+	private async Task InitChannelAsync()
 	{
-		StopChannel();
+		await InitExchangesAsync();
 
-		_channel = _connectionFactory.CreateChannel();
+		_channel = await _connectionFactory.CreateChannelAsync();
 
-		Logger.LogInformation(
-			$"initializing retry queue '{_configuration.QueueName}' on exchange '{_connectionFactory.ExchangeCommandsName}'...");
+		await _channel.ExchangeDeclareAsync(_connectionFactory.ExchangeCommandsName, ExchangeType.Direct, true);
+		await _channel.QueueDeclareAsync(_configuration.QueueName, false, true, true);
+		await _channel.QueueBindAsync(_configuration.QueueName, _connectionFactory.ExchangeCommandsName,
+			_configuration.ResourceKey);
 
-		_channel.ExchangeDeclare(_connectionFactory.ExchangeCommandsName, ExchangeType.Direct);
-		_channel.QueueDeclare(_configuration.QueueName,
-			true,
-			false,
-			false);
-		_channel.QueueBind(_configuration.QueueName,
-			_connectionFactory.ExchangeCommandsName,
-			_configuration.ResourceKey,
-			null);
-
-		_channel.CallbackException += OnChannelException!;
+		_channel.CallbackExceptionAsync += async (object _, CallbackExceptionEventArgs e) =>
+		{
+			Logger.LogWarning($"Channel exception: {e.Exception.Message}");
+			await OnChannelExceptionAsync(e);
+		};
 	}
 
-	private void StopChannel()
+	private async Task StopChannelAsync()
 	{
-		if (_channel == null)
+		if (!_channel.IsOpen)
 			return;
-
-		_channel.CallbackException -= OnChannelException!;
-
-		if (_channel.IsOpen)
-			_channel.Close();
-
+		
+		await _channel.CloseAsync();
 		_channel.Dispose();
-		//_channel = null;
 	}
 
-	private void OnChannelException(object _, CallbackExceptionEventArgs ea)
+	private async Task OnChannelExceptionAsync(CallbackExceptionEventArgs e)
 	{
-		Logger.LogError(ea.Exception, $"RabbitMQ Channel has encountered an error: {ea.Exception.Message}");
-
-		InitChannel();
-		InitSubscription();
+		Logger.LogError(e.Exception, $"RabbitMQ Channel has encountered an error: {e.Exception.Message}");
+		
+		await InitChannelAsync();
+		await InitSubscriptionAsync();
 	}
-
-	private void InitSubscription()
+	
+	private async Task InitSubscriptionAsync()
 	{
 		Logger.LogInformation($"Initializing subscription on queue '{_configuration.QueueName}' ...");
+		
 		var consumer = new AsyncEventingBasicConsumer(_channel);
-		consumer.Received += OnMessageReceivedAsync;
-		_channel.BasicConsume(_configuration.QueueName, false, consumer);
+		consumer.ReceivedAsync += OnMessageReceivedAsync;
+		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
 	}
 
 	private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)
 	{
-		var consumer = sender as IBasicConsumer;
-		var channel = consumer?.Model ?? _channel;
-
 		Command? command;
+		
 		try
 		{
 			command = await _messageSerializer.DeserializeAsync<T>(Encoding.UTF8.GetString(eventArgs.Body.ToArray()), CancellationToken.None);
@@ -140,7 +115,8 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		catch (Exception ex)
 		{
 			Logger.LogError(ex, "An exception has occured while decoding queue message from Exchange '{ExchangeName}', message cannot be parsed. Error: {ExceptionMessage}", eventArgs.Exchange, ex.Message);
-			channel.BasicReject(eventArgs.DeliveryTag, false);
+			await _channel.BasicRejectAsync(eventArgs.DeliveryTag, false);
+			
 			return;
 		}
 
@@ -152,16 +128,15 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 				//TODO: provide valid cancellation token
 				await ConsumeAsync((dynamic)command, CancellationToken.None);
 
-				channel.BasicAck(eventArgs.DeliveryTag, false);
-			}
+				await _channel.BasicAckAsync(eventArgs.DeliveryTag, false); }
 			catch (Exception ex)
 			{
-				HandleConsumerException(ex, eventArgs, channel, command, false);
+				await HandleConsumerExceptionAsync(ex, eventArgs, _channel, command, false);
 			}
 		}
 	}
 
-	private void HandleConsumerException(Exception ex, BasicDeliverEventArgs deliveryProps, IModel channel,
+	private async Task HandleConsumerExceptionAsync(Exception ex, BasicDeliverEventArgs deliveryProps, IChannel channel,
 		IMessage message, bool requeue)
 	{
 		var errorMsg = $"An error has occurred while processing Message '{message.MessageId}' from Exchange '{deliveryProps.Exchange}' : {ex.Message} . {(requeue ? "Reenqueuing..." : "Nacking...")}";
@@ -169,13 +144,35 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 
 		if (!requeue)
 		{
-			channel.BasicReject(deliveryProps.DeliveryTag, false);
+			await channel.BasicRejectAsync(deliveryProps.DeliveryTag, false);
 		}
 		else
 		{
-			channel.BasicAck(deliveryProps.DeliveryTag, false);
-			channel.BasicPublish(_configuration.QueueName, deliveryProps.RoutingKey, deliveryProps.BasicProperties, deliveryProps.Body);
+			await channel.BasicAckAsync(deliveryProps.DeliveryTag, false);
+			// await channel.BasicPublishAsync(_configuration.QueueName, deliveryProps.RoutingKey, false,
+			// 	deliveryProps.BasicProperties, deliveryProps.Body).ConfigureAwait(false);
 		}
+	}
+	
+	private async Task InitExchangesAsync()
+	{
+		await _channel.ExchangeDeclareAsync(_connectionFactory.ExchangeCommandsName, ExchangeType.Direct);
+	}
+
+	private void GetQueueName(ConsumerConfiguration configuration)
+	{
+		configuration.QueueName = typeof(T).Name;
+
+		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
+			configuration.ResourceKey = typeof(T).Name;
+
+		if (!string.IsNullOrWhiteSpace(configuration.QueueName)) 
+			return;
+		
+		configuration.QueueName = GetType().Name;
+		if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
+			configuration.QueueName =
+				configuration.QueueName[..^"Consumer".Length];
 	}
 
 	public ValueTask DisposeAsync()
