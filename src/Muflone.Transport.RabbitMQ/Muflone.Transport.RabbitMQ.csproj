@@ -21,7 +21,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
-    <PackageReference Include="Muflone" Version="8.3.0-alpha" />
+    <PackageReference Include="Muflone" Version="8.3.6-alpha" />
     <PackageReference Include="Polly" Version="8.5.0" />
     <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
   </ItemGroup>
@@ -35,6 +35,10 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Muflone\src\Muflone\Muflone.csproj" />
   </ItemGroup>
 
 </Project>
