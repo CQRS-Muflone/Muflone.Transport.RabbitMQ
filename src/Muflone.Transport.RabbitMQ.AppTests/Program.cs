@@ -26,7 +26,7 @@ if (withConsumer)
 	consumers.Add(new OrderCreatedConsumer(mufloneConnectionFactory, new NullLoggerFactory()));	
 
 builder.Services.AddMufloneRabbitMQConsumers(consumers);
-builder.Services.AddMessageHandler<OrderCreatedEventHandler>();
+builder.Services.AddDomainEventHandler<OrderCreatedEventHandler>();
 
 using IHost host = builder.Build();
 
