@@ -11,10 +11,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Muflone.Transport.RabbitMQ.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Muflone.Transport.RabbitMQ.AppTests", "Muflone.Transport.RabbitMQ.AppTests\Muflone.Transport.RabbitMQ.AppTests.csproj", "{B92F2307-AC08-4008-ABDA-C7A96FD507A3}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Muflone", "Muflone", "{314C1C68-A170-41BC-AA14-3E056457BCB3}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Muflone", "..\..\Muflone\src\Muflone\Muflone.csproj", "{236FEF00-BE65-4E65-AFC6-B9EFA8AC485C}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,10 +29,6 @@ Global
 		{B92F2307-AC08-4008-ABDA-C7A96FD507A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B92F2307-AC08-4008-ABDA-C7A96FD507A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B92F2307-AC08-4008-ABDA-C7A96FD507A3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{236FEF00-BE65-4E65-AFC6-B9EFA8AC485C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{236FEF00-BE65-4E65-AFC6-B9EFA8AC485C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{236FEF00-BE65-4E65-AFC6-B9EFA8AC485C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{236FEF00-BE65-4E65-AFC6-B9EFA8AC485C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -44,7 +36,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{7BC39D88-D7ED-4991-BCB5-9D435501244A} = {A30778A7-53EA-4EEE-9F73-F28D52960378}
 		{B92F2307-AC08-4008-ABDA-C7A96FD507A3} = {A30778A7-53EA-4EEE-9F73-F28D52960378}
-		{236FEF00-BE65-4E65-AFC6-B9EFA8AC485C} = {314C1C68-A170-41BC-AA14-3E056457BCB3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {06DCD95C-B56A-4DEC-848B-9BAE82319FCB}
