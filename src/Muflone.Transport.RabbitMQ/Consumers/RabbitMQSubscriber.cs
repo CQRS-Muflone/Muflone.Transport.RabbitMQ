@@ -88,8 +88,10 @@ public class RabbitMQSubscriber(
         if (queueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
             queueName = queueName[..^"Consumer".Length];
 
-        if (!handlerSubscription.IsSingletonHandler)
-            queueName = $"{queueName}.{handlerSubscription.HandlerSubscriptionId}";
+        // For events, always use unique queues; for commands, use singleton logic
+        // The logic is: A queue for every subscriber not a queue for every event!
+        if (!handlerSubscription.IsCommandHandler || !handlerSubscription.IsSingletonHandler)
+          queueName = $"{queueName}.{handlerSubscription.HandlerSubscriptionId}";
 
         const int maxQueueNameLength = 255;
         return queueName[..Math.Min(queueName.Length, maxQueueNameLength)];
