@@ -58,7 +58,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 	{
 		Logger.LogInformation(
 			$"initializing retry queue '{_configuration.QueueName}' on exchange '{_connectionFactory.ExchangeEventsName}'...");
-		
+
 		_channel = await _connectionFactory.CreateChannelAsync();
 		await _channel.ExchangeDeclareAsync(_connectionFactory.ExchangeEventsName, ExchangeType.Topic, true);
 		await _channel.QueueDeclareAsync(_configuration.QueueName, false, false, false);
@@ -76,7 +76,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 	{
 		if (!_channel.IsOpen)
 			return;
-		
+
 		await _channel.CloseAsync();
 		_channel.Dispose();
 	}
@@ -94,7 +94,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 		var consumer = new AsyncEventingBasicConsumer(_channel);
 		consumer.ReceivedAsync += OnMessageReceivedAsync;
 		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
-		
+
 		Logger.LogInformation(
 			$"Initializing subscription on queue '{_configuration.QueueName}' with ResourceKey '{_configuration.ResourceKey}' ...");
 		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
@@ -103,7 +103,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 	private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)
 	{
 		IntegrationEvent? message;
-		
+
 		try
 		{
 			message = await _messageSerializer.DeserializeAsync<T>(Encoding.UTF8.GetString(eventArgs.Body.ToArray()), CancellationToken.None);
@@ -127,7 +127,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 				//TODO: provide valid cancellation token
 				await ConsumeAsync((dynamic)message, CancellationToken.None);
 
-				await _channel.BasicAckAsync(eventArgs.DeliveryTag, false); 
+				await _channel.BasicAckAsync(eventArgs.DeliveryTag, false);
 			}
 			catch (Exception ex)
 			{
@@ -153,17 +153,17 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 			// 	deliveryProps.Body);
 		}
 	}
-	
+
 	private void GetQueueName(ConsumerConfiguration configuration)
 	{
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
 			configuration.ResourceKey = typeof(T).Name;
-		
+
 		configuration.QueueName = typeof(T).Name;
 
-		if (!string.IsNullOrWhiteSpace(configuration.QueueName)) 
+		if (!string.IsNullOrWhiteSpace(configuration.QueueName))
 			return;
-		
+
 		configuration.QueueName = GetType().Name;
 		if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
 			configuration.QueueName =

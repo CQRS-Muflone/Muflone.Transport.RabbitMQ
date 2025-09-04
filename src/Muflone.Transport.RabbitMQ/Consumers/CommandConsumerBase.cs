@@ -17,7 +17,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	private readonly ConsumerConfiguration _configuration;
 	private readonly IRabbitMQConnectionFactory _connectionFactory;
 	private IChannel _channel;
-	
+
 	protected abstract ICommandHandlerAsync<T> HandlerAsync { get; }
 
 	/// <summary>
@@ -82,7 +82,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	{
 		if (!_channel.IsOpen)
 			return;
-		
+
 		await _channel.CloseAsync();
 		_channel.Dispose();
 	}
@@ -90,15 +90,15 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	private async Task OnChannelExceptionAsync(CallbackExceptionEventArgs e)
 	{
 		Logger.LogError(e.Exception, $"RabbitMQ Channel has encountered an error: {e.Exception.Message}");
-		
+
 		await InitChannelAsync();
 		await InitSubscriptionAsync();
 	}
-	
+
 	private async Task InitSubscriptionAsync()
 	{
 		Logger.LogInformation($"Initializing subscription on queue '{_configuration.QueueName}' ...");
-		
+
 		var consumer = new AsyncEventingBasicConsumer(_channel);
 		consumer.ReceivedAsync += OnMessageReceivedAsync;
 		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
@@ -107,7 +107,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 	private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)
 	{
 		Command? command;
-		
+
 		try
 		{
 			command = await _messageSerializer.DeserializeAsync<T>(Encoding.UTF8.GetString(eventArgs.Body.ToArray()), CancellationToken.None);
@@ -116,7 +116,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		{
 			Logger.LogError(ex, "An exception has occured while decoding queue message from Exchange '{ExchangeName}', message cannot be parsed. Error: {ExceptionMessage}", eventArgs.Exchange, ex.Message);
 			await _channel.BasicRejectAsync(eventArgs.DeliveryTag, false);
-			
+
 			return;
 		}
 
@@ -128,7 +128,8 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 				//TODO: provide valid cancellation token
 				await ConsumeAsync((dynamic)command, CancellationToken.None);
 
-				await _channel.BasicAckAsync(eventArgs.DeliveryTag, false); }
+				await _channel.BasicAckAsync(eventArgs.DeliveryTag, false);
+			}
 			catch (Exception ex)
 			{
 				await HandleConsumerExceptionAsync(ex, eventArgs, _channel, command, false);
@@ -153,7 +154,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 			// 	deliveryProps.BasicProperties, deliveryProps.Body).ConfigureAwait(false);
 		}
 	}
-	
+
 	private async Task InitExchangesAsync()
 	{
 		await _channel.ExchangeDeclareAsync(_connectionFactory.ExchangeCommandsName, ExchangeType.Direct);
@@ -166,9 +167,9 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
 			configuration.ResourceKey = typeof(T).Name;
 
-		if (!string.IsNullOrWhiteSpace(configuration.QueueName)) 
+		if (!string.IsNullOrWhiteSpace(configuration.QueueName))
 			return;
-		
+
 		configuration.QueueName = GetType().Name;
 		if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
 			configuration.QueueName =
