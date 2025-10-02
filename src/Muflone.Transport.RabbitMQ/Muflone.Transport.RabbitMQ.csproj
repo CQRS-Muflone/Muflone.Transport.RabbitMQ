@@ -13,8 +13,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Version>8.4.0</Version>
-    <PackageReleaseNotes>Fix UTF8 deserialization of messages</PackageReleaseNotes>
+    <Version>8.5.0</Version>
+    <PackageReleaseNotes>Fixes pub/sub event dispatch to multiple subscribers</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

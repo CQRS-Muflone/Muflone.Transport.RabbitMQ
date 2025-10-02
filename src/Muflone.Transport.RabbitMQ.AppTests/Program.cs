@@ -23,7 +23,7 @@ builder.Services.AddHostedService<RunTest>();
 
 List<IConsumer> consumers = [];
 if (withConsumer)
-	consumers.Add(new OrderCreatedConsumer(mufloneConnectionFactory, new NullLoggerFactory()));	
+	consumers.Add(new OrderCreatedConsumer(mufloneConnectionFactory, new NullLoggerFactory()));
 
 builder.Services.AddMufloneRabbitMQConsumers(consumers);
 builder.Services.AddDomainEventHandler<OrderCreatedEventHandler>();

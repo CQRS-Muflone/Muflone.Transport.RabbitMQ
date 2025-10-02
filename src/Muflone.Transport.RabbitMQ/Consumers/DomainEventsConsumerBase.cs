@@ -17,7 +17,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 	private readonly ConsumerConfiguration _configuration;
 	private readonly IRabbitMQConnectionFactory _connectionFactory;
 	private IChannel _channel;
-	
+
 	protected abstract IEnumerable<IDomainEventHandlerAsync<T>> HandlersAsync { get; }
 
 	protected DomainEventsConsumerBase(IRabbitMQConnectionFactory connectionFactory,
@@ -33,7 +33,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		_connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 		_messageSerializer = new Serializer();
 		_channel = null!;
-		
+
 		GetQueueName(configuration);
 		_configuration = configuration;
 	}
@@ -63,12 +63,12 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		try
 		{
 			_channel = await _connectionFactory.CreateChannelAsync();
-		
+
 			await _channel.ExchangeDeclareAsync(_connectionFactory.ExchangeEventsName, ExchangeType.Topic, true);
 			await _channel.QueueDeclareAsync(_configuration.QueueName, false, false, false);
 			await _channel.QueueBindAsync(_configuration.QueueName, _connectionFactory.ExchangeEventsName,
 				_configuration.ResourceKey);
-		
+
 			_channel.CallbackExceptionAsync += async (_, e) =>
 			{
 				Logger.LogWarning($"Channel exception: {e.Exception.Message}");
@@ -87,7 +87,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 	{
 		if (!_channel.IsOpen)
 			return;
-		
+
 		await _channel.CloseAsync();
 		_channel.Dispose();
 	}
@@ -105,7 +105,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		var consumer = new AsyncEventingBasicConsumer(_channel);
 		consumer.ReceivedAsync += OnMessageReceivedAsync;
 		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
-		
+
 		Logger.LogInformation(
 			$"Initializing subscription on queue '{_configuration.QueueName}' with ResourceKey '{_configuration.ResourceKey}' ...");
 		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
@@ -137,7 +137,7 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 				//TODO: provide valid cancellation token
 				await ConsumeAsync((dynamic)message, CancellationToken.None);
 
-				await _channel.BasicAckAsync(eventArgs.DeliveryTag, false); 
+				await _channel.BasicAckAsync(eventArgs.DeliveryTag, false);
 			}
 			catch (Exception ex)
 			{
@@ -163,17 +163,17 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 			// 	deliveryProps.Body);
 		}
 	}
-	
+
 	private void GetQueueName(ConsumerConfiguration configuration)
 	{
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
 			configuration.ResourceKey = typeof(T).Name;
-		
+
 		configuration.QueueName = typeof(T).Name;
 
-		if (!string.IsNullOrWhiteSpace(configuration.QueueName)) 
+		if (!string.IsNullOrWhiteSpace(configuration.QueueName))
 			return;
-		
+
 		configuration.QueueName = GetType().Name;
 		if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
 			configuration.QueueName =
