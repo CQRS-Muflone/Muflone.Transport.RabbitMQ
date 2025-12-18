@@ -70,7 +70,7 @@ public class RabbitMQSubscriber(
 	{
 		var queueName = GetQueueName(handlerSubscription);
 		var consumer = new AsyncEventingBasicConsumer(handlerSubscription.Channel!);
-		consumer.ReceivedAsync += async (sender, @event) =>
+		consumer.ReceivedAsync += async (_, @event) =>
 		{
 			var messageString = Encoding.UTF8.GetString(@event.Body.ToArray());
 			await handlerSubscription.MessageAsync(messageString, CancellationToken.None);
@@ -90,7 +90,7 @@ public class RabbitMQSubscriber(
 
 		// For events, always use unique queues; for commands, use singleton logic
 		// The logic is: A queue for every subscriber not a queue for every event!
-		if (!handlerSubscription.IsSingletonHandler)
+		if (!handlerSubscription.IsCommandHandler || !handlerSubscription.IsSingletonHandler)
 			queueName = $"{queueName}.{handlerSubscription.HandlerSubscriptionId}";
 
 		const int maxQueueNameLength = 255;
