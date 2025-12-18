@@ -50,7 +50,7 @@ public class RabbitMQSubscriber(
 
 		await channel.QueueBindAsync(queueName, exchangeName, routingKey, null);
 
-		channel.CallbackExceptionAsync += async (object sender, CallbackExceptionEventArgs e) =>
+		channel.CallbackExceptionAsync += async (_, e) =>
 		{
 			_logger.LogWarning($"Channel exception: {e.Exception.Message}");
 			await OnChannelExceptionAsync(handlerSubscription, e);
@@ -90,7 +90,7 @@ public class RabbitMQSubscriber(
 
 		// For events, always use unique queues; for commands, use singleton logic
 		// The logic is: A queue for every subscriber not a queue for every event!
-		if (!handlerSubscription.IsCommandHandler || !handlerSubscription.IsSingletonHandler)
+		if (!handlerSubscription.IsSingletonHandler)
 			queueName = $"{queueName}.{handlerSubscription.HandlerSubscriptionId}";
 
 		const int maxQueueNameLength = 255;
