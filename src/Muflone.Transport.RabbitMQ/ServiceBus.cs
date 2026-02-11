@@ -1,16 +1,23 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
+using Muflone.Messages;
 using Muflone.Messages.Commands;
 using Muflone.Messages.Events;
 using Muflone.Persistence;
 using Muflone.Transport.RabbitMQ.Abstracts;
 using Polly;
 using RabbitMQ.Client;
+using System.Diagnostics;
 using System.Text;
 
 namespace Muflone.Transport.RabbitMQ;
 
 public class ServiceBus : IServiceBus, IEventBus
 {
+	private const string TraceParentKey = "traceparent";
+	private const string TraceStateKey = "tracestate";
+	private static readonly ActivitySource ServiceBusActivitySource = new("Muflone.ServiceBus", "1.0.0");
+	private static readonly ActivitySource EventBusActivitySource = new("Muflone.EventBus", "1.0.0");
+
 	private readonly IRabbitMQConnectionFactory _connectionFactory;
 	private readonly ISerializer _messageSerializer;
 	private readonly ILogger _logger;
@@ -30,7 +37,16 @@ public class ServiceBus : IServiceBus, IEventBus
 	public async Task SendAsync<T>(T request, CancellationToken cancellationToken = default)
 			where T : class, ICommand
 	{
-		var serializedMessage = await _messageSerializer.SerializeAsync(request, cancellationToken);
+		request.UserProperties ??= new Dictionary<string, object>();
+
+		using var fallbackActivity = StartFallbackProducerActivity(
+				ServiceBusActivitySource,
+				$"{typeof(T).Name} send",
+				request);
+
+		fallbackActivity?.SetTag("messaging.operation", "send");
+		fallbackActivity?.SetTag("messaging.message.type", typeof(T).Name);
+		fallbackActivity?.SetTag("messaging.message.id", request.MessageId.ToString());
 
 		var policy = Policy.Handle<Exception>()
 				.WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
@@ -50,6 +66,10 @@ public class ServiceBus : IServiceBus, IEventBus
 								{ "message-type", request.GetType().FullName! }
 						}
 		};
+
+		InjectTraceHeaders(properties.Headers!, request.UserProperties);
+
+		var serializedMessage = await _messageSerializer.SerializeAsync(request, cancellationToken);
 
 		await policy.ExecuteAsync(async () =>
 		{
@@ -72,8 +92,16 @@ public class ServiceBus : IServiceBus, IEventBus
 	public async Task PublishAsync<T>(T message, CancellationToken cancellationToken = default)
 			where T : class, IEvent
 	{
-		var serializedMessage =
-				await _messageSerializer.SerializeAsync(message, cancellationToken).ConfigureAwait(false);
+		message.UserProperties ??= new Dictionary<string, object>();
+
+		using var fallbackActivity = StartFallbackProducerActivity(
+				EventBusActivitySource,
+				$"{typeof(T).Name} publish",
+				message);
+
+		fallbackActivity?.SetTag("messaging.operation", "publish");
+		fallbackActivity?.SetTag("messaging.message.type", typeof(T).Name);
+		fallbackActivity?.SetTag("messaging.message.id", message.MessageId.ToString());
 
 		var policy = Policy.Handle<Exception>()
 				.WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
@@ -94,6 +122,10 @@ public class ServiceBus : IServiceBus, IEventBus
 						}
 		};
 
+		InjectTraceHeaders(properties.Headers!, message.UserProperties);
+
+		var serializedMessage = await _messageSerializer.SerializeAsync(message, cancellationToken).ConfigureAwait(false);
+
 		await policy.ExecuteAsync(async () =>
 				{
 					var channel = await GetWriterChannelAsync().ConfigureAwait(false);
@@ -105,13 +137,70 @@ public class ServiceBus : IServiceBus, IEventBus
 											Encoding.UTF8.GetBytes(serializedMessage),
 											cancellationToken: cancellationToken)
 									.ConfigureAwait(false);
-					;
 
 					_logger.LogInformation(
 									$"message '{message}' published to Exchange '{_connectionFactory.ExchangeEventsName}'");
 				})
 				.ConfigureAwait(false);
-		;
+	}
+
+	private static void InjectTraceHeaders(IDictionary<string, object?> headers, IDictionary<string, object> userProperties)
+	{
+		var traceParent = Activity.Current?.Id;
+		var traceState = Activity.Current?.TraceStateString;
+
+		if (string.IsNullOrWhiteSpace(traceParent) &&
+				userProperties.TryGetValue(TraceParentKey, out var traceParentObj))
+		{
+			traceParent = traceParentObj?.ToString();
+		}
+
+		if (string.IsNullOrWhiteSpace(traceState) &&
+				userProperties.TryGetValue(TraceStateKey, out var traceStateObj))
+		{
+			traceState = traceStateObj?.ToString();
+		}
+
+		if (!string.IsNullOrWhiteSpace(traceParent))
+		{
+			headers[TraceParentKey] = traceParent;
+			userProperties[TraceParentKey] = traceParent;
+		}
+
+		if (!string.IsNullOrWhiteSpace(traceState))
+		{
+			headers[TraceStateKey] = traceState;
+			userProperties[TraceStateKey] = traceState;
+		}
+	}
+
+	private static Activity? StartFallbackProducerActivity(ActivitySource activitySource, string activityName, IMessage message)
+	{
+		if (Activity.Current != null)
+			return null;
+
+		if (!TryExtractParentContext(message.UserProperties, out var parentContext))
+			return null;
+
+		return activitySource.StartActivity(activityName, ActivityKind.Producer, parentContext);
+	}
+
+	private static bool TryExtractParentContext(IDictionary<string, object> userProperties, out ActivityContext parentContext)
+	{
+		parentContext = default;
+
+		if (!userProperties.TryGetValue(TraceParentKey, out var traceParentObj))
+			return false;
+
+		var traceParent = traceParentObj?.ToString();
+		if (string.IsNullOrWhiteSpace(traceParent))
+			return false;
+
+		var traceState = userProperties.TryGetValue(TraceStateKey, out var traceStateObj)
+				? traceStateObj?.ToString()
+				: null;
+
+		return ActivityContext.TryParse(traceParent, traceState, out parentContext);
 	}
 
 	private Task<IChannel> GetWriterChannelAsync()
