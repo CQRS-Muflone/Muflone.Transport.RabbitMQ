@@ -14,7 +14,7 @@
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Version>10.0.2</Version>
-    <PackageReleaseNotes>Fixes pub/sub event dispatch to multiple subscribers</PackageReleaseNotes>
+    <PackageReleaseNotes>Fix exchanges and queues to durable</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
