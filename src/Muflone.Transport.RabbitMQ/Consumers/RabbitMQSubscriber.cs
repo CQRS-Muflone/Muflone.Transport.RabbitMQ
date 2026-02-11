@@ -28,8 +28,8 @@ public class RabbitMQSubscriber(
 	private async Task InitExchangesAsync()
 	{
 		await using var channel = await connectionFactory.CreateChannelAsync();
-		await channel.ExchangeDeclareAsync(connectionFactory.ExchangeEventsName, ExchangeType.Topic);
-		await channel.ExchangeDeclareAsync(connectionFactory.ExchangeCommandsName, ExchangeType.Direct);
+		await channel.ExchangeDeclareAsync(connectionFactory.ExchangeEventsName, ExchangeType.Topic, durable: true);
+		await channel.ExchangeDeclareAsync(connectionFactory.ExchangeCommandsName, ExchangeType.Direct, durable: true);
 	}
 
 	protected override async Task InitChannelAsync(HandlerSubscription<IChannel> handlerSubscription)
@@ -46,7 +46,7 @@ public class RabbitMQSubscriber(
 				: connectionFactory.ExchangeEventsName;
 
 		await channel.QueueDeleteAsync(queueName);
-		await channel.QueueDeclareAsync(queueName, false, true, true);
+		await channel.QueueDeclareAsync(queueName, true, true, false);
 
 		await channel.QueueBindAsync(queueName, exchangeName, routingKey, null);
 
