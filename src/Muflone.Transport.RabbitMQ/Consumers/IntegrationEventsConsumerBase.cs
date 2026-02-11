@@ -61,7 +61,7 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 
 		_channel = await _connectionFactory.CreateChannelAsync();
 		await _channel.ExchangeDeclareAsync(_connectionFactory.ExchangeEventsName, ExchangeType.Topic, true);
-		await _channel.QueueDeclareAsync(_configuration.QueueName, false, false, false);
+		await _channel.QueueDeclareAsync(_configuration.QueueName, true, false, false);
 		await _channel.QueueBindAsync(_configuration.QueueName, _connectionFactory.ExchangeEventsName,
 			_configuration.ResourceKey);
 
