@@ -13,8 +13,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Version>10.0.2</Version>
-    <PackageReleaseNotes>Fix exchanges and queues to durable</PackageReleaseNotes>
+    <Version>10.1.0-rc1</Version>
+    <PackageReleaseNotes>Improve support to Muflone.OpenTelemetry</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
