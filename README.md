@@ -5,6 +5,26 @@
 
 Muflone extension to manage queues and topics on RabbitMQ, designed for CQRS and Event Sourcing architectures.
 
+## Breaking Changes
+
+### v10.1.0 — Queue and Exchange Durability
+
+> **ACTION REQUIRED before upgrading to v10.1.0**
+
+All exchanges and queues are now declared as **durable** (persisted to disk and survived broker restarts). Previously they were non-durable/transient.
+
+RabbitMQ does **not** allow redeclaring an existing queue or exchange with different durability settings — the broker will reject the connection with a channel error.
+
+**Before starting your application with v10.1.0 you must delete all existing queues and exchanges** that were created by a previous version of this library. You can do this via:
+
+- The RabbitMQ Management UI (`http://localhost:15672`) — navigate to *Queues* and *Exchanges* and delete each one.
+- The RabbitMQ CLI: `rabbitmqctl delete_queue <queue-name>` / `rabbitmqctl delete_exchange <exchange-name>`.
+- The HTTP API: `DELETE /api/queues/%2F/<queue-name>` / `DELETE /api/exchanges/%2F/<exchange-name>`.
+
+Once deleted, the library will recreate them with the correct durable settings on startup.
+
+---
+
 ## Features
 
 - **CQRS Support** - Separate commands (Direct exchange) and events (Topic exchange) with dedicated routing

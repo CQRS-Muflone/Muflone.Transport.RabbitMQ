@@ -353,4 +353,7 @@ MigrationBackup/
 .ionide/
 .cr/
 .idea/
+.vscode/
 .claude/
+.github/
+.codex/
