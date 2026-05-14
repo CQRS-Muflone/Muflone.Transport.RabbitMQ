@@ -71,7 +71,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		await _channel.QueueBindAsync(_configuration.QueueName, _connectionFactory.ExchangeCommandsName,
 			_configuration.ResourceKey);
 
-		_channel.CallbackExceptionAsync += async (object _, CallbackExceptionEventArgs e) =>
+		_channel.CallbackExceptionAsync += async (_, e) =>
 		{
 			Logger.LogWarning($"Channel exception: {e.Exception.Message}");
 			await OnChannelExceptionAsync(e);

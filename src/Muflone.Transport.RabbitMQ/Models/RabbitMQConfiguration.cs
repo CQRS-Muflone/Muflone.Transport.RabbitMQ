@@ -10,8 +10,7 @@ public class RabbitMQConfiguration
 	public readonly string ExchangeCommandsName;
 	public readonly string ExchangeEventsName;
 	public readonly string ClientId;
-
-
+	
 	public RabbitMQConfiguration(string hostName, string userName, string password, string exchangeCommandsName,
 		string exchangeEventsName, string clientId)
 		: this(hostName, userName, password, TimeSpan.FromSeconds(30), exchangeCommandsName, exchangeEventsName, clientId)
