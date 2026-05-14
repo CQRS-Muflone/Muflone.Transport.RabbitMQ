@@ -93,11 +93,10 @@ public abstract class IntegrationEventsConsumerBase<T> : ConsumerBase, IIntegrat
 	{
 		var consumer = new AsyncEventingBasicConsumer(_channel);
 		consumer.ReceivedAsync += OnMessageReceivedAsync;
-		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
+		await _channel.BasicConsumeAsync(_configuration.QueueName, false, consumer);
 
 		Logger.LogInformation(
 			$"Initializing subscription on queue '{_configuration.QueueName}' with ResourceKey '{_configuration.ResourceKey}' ...");
-		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
 	}
 
 	private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)

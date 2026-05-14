@@ -67,7 +67,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 		_channel = await _connectionFactory.CreateChannelAsync();
 
 		await _channel.ExchangeDeclareAsync(_connectionFactory.ExchangeCommandsName, ExchangeType.Direct, true);
-		await _channel.QueueDeclareAsync(_configuration.QueueName, true, true, false);
+		await _channel.QueueDeclareAsync(_configuration.QueueName, true, false, false);
 		await _channel.QueueBindAsync(_configuration.QueueName, _connectionFactory.ExchangeCommandsName,
 			_configuration.ResourceKey);
 
@@ -101,7 +101,7 @@ public abstract class CommandConsumerBase<T> : ConsumerBase, ICommandConsumer<T>
 
 		var consumer = new AsyncEventingBasicConsumer(_channel);
 		consumer.ReceivedAsync += OnMessageReceivedAsync;
-		await _channel.BasicConsumeAsync(_configuration.QueueName, true, consumer);
+		await _channel.BasicConsumeAsync(_configuration.QueueName, false, consumer);
 	}
 
 	private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs eventArgs)

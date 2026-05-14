@@ -45,8 +45,7 @@ public class RabbitMQSubscriber(
 				? connectionFactory.ExchangeCommandsName
 				: connectionFactory.ExchangeEventsName;
 
-		await channel.QueueDeleteAsync(queueName);
-		await channel.QueueDeclareAsync(queueName, true, true, false);
+		await channel.QueueDeclareAsync(queueName, true, false, false);
 
 		await channel.QueueBindAsync(queueName, exchangeName, routingKey, null);
 
@@ -74,9 +73,10 @@ public class RabbitMQSubscriber(
 		{
 			var messageString = Encoding.UTF8.GetString(@event.Body.ToArray());
 			await handlerSubscription.MessageAsync(messageString, CancellationToken.None);
+			await handlerSubscription.Channel!.BasicAckAsync(@event.DeliveryTag, false);
 		};
 
-		await handlerSubscription.Channel!.BasicConsumeAsync(queueName, true, consumer);
+		await handlerSubscription.Channel!.BasicConsumeAsync(queueName, false, consumer);
 	}
 
 	private string GetQueueName(HandlerSubscription<IChannel> handlerSubscription)
@@ -88,10 +88,10 @@ public class RabbitMQSubscriber(
 		if (queueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
 			queueName = queueName[..^"Consumer".Length];
 
-		// For events, always use unique queues; for commands, use singleton logic
-		// The logic is: A queue for every subscriber not a queue for every event!
+		// For events, always use unique queues per handler type; for commands, use singleton logic.
+		// ConsumerTypeName gives a stable name across restarts (unlike a GUID).
 		if (!handlerSubscription.IsCommandHandler || !handlerSubscription.IsSingletonHandler)
-			queueName = $"{queueName}.{handlerSubscription.HandlerSubscriptionId}";
+			queueName = $"{queueName}.{handlerSubscription.ConsumerTypeName}";
 
 		const int maxQueueNameLength = 255;
 		return queueName[..Math.Min(queueName.Length, maxQueueNameLength)];
