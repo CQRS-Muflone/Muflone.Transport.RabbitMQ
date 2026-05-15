@@ -168,15 +168,9 @@ public abstract class DomainEventsConsumerBase<T> : ConsumerBase, IDomainEventCo
 		if (string.IsNullOrWhiteSpace(configuration.ResourceKey))
 			configuration.ResourceKey = typeof(T).Name;
 
-		configuration.QueueName = typeof(T).Name;
-
-		if (!string.IsNullOrWhiteSpace(configuration.QueueName))
-			return;
-
-		configuration.QueueName = GetType().Name;
+		configuration.QueueName = GetType().FullName ?? GetType().Name;
 		if (configuration.QueueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
-			configuration.QueueName =
-				configuration.QueueName[..^"Consumer".Length];
+			configuration.QueueName = configuration.QueueName[..^"Consumer".Length];
 	}
 
 	#region Dispose
