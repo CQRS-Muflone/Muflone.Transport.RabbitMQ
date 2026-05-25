@@ -3,6 +3,7 @@ using Muflone.Messages;
 using Muflone.Transport.RabbitMQ.Abstracts;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Muflone.Transport.RabbitMQ.Consumers;
@@ -84,17 +85,28 @@ public class RabbitMQSubscriber(
 		if (handlerSubscription.Configuration?.QueueName is not null)
 			return handlerSubscription.Configuration.QueueName;
 
-		var queueName = $"{connectionFactory.ClientId}.{handlerSubscription.EventTypeName}";
-		if (queueName.EndsWith("Consumer", StringComparison.InvariantCultureIgnoreCase))
-			queueName = queueName[..^"Consumer".Length];
+		var baseQueueName = $"{connectionFactory.ClientId}.{handlerSubscription.EventTypeName}";
 
 		// For events, always use unique queues per handler type; for commands, use singleton logic.
-		// ConsumerTypeName gives a stable name across restarts (unlike a GUID).
+		// ConsumerTypeName is the fully-qualified type name, guaranteeing uniqueness across namespaces.
 		if (!handlerSubscription.IsCommandHandler || !handlerSubscription.IsSingletonHandler)
-			queueName = $"{queueName}.{handlerSubscription.ConsumerTypeName}";
+		{
+			var consumerTypeName = handlerSubscription.ConsumerTypeName;
+			var candidate = $"{baseQueueName}.{consumerTypeName}";
 
-		const int maxQueueNameLength = 255;
-		return queueName[..Math.Min(queueName.Length, maxQueueNameLength)];
+			const int maxQueueNameLength = 255;
+			if (candidate.Length <= maxQueueNameLength)
+				return candidate;
+
+			// Full name exceeds the limit: hash the consumer type name to a stable 16-char hex suffix.
+			var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(consumerTypeName));
+			var hash = Convert.ToHexString(hashBytes)[..16];
+			var hashCandidate = $"{baseQueueName}.{hash}";
+			return hashCandidate[..Math.Min(hashCandidate.Length, maxQueueNameLength)];
+		}
+
+		const int maxLength = 255;
+		return baseQueueName[..Math.Min(baseQueueName.Length, maxLength)];
 	}
 
 	private static string GetRoutingKey(HandlerSubscription<IChannel> handlerSubscription)
